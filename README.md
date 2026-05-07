@@ -20,6 +20,10 @@ research/
     └── BitVM-zkCoins/             # Historical Plonky2 experiments
 ```
 
+## Protocol Status
+
+See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of the Shielded CSV paper against our current implementation, including what's done, what's missing, and the roadmap.
+
 ## The Paper
 
 **Shielded CSV: Private and Efficient Client-Side Validation**
