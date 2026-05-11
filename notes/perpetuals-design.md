@@ -437,7 +437,7 @@ Use the differentiator that is real: **privacy + Bitcoin settlement + cryptograp
 
 1. **Maker rebate and fee schedule**: standard pattern is positive rebates for makers, fees for takers. How does this interact with ZK privacy (rebate flows are visible aggregates but not per-trader)?
 
-2. **Bridging to external collateral**: practical mechanism for users to deposit Bitcoin into the venue's collateral pool. Federated peg vs. BitVM2 vs. trusted custodian? Affects the trust story significantly.
+2. **Bridging to external collateral**: practical mechanism for users to deposit Bitcoin into the venue's collateral pool. Federated peg vs. BitVM2 vs. trusted custodian? Affects the trust story significantly. See [`../bitvm-bridge-research.md`](../bitvm-bridge-research.md) for the BitVM2 bridge analysis — concretely the Citrea Clementine and Bitlayer YBTC reference implementations are the closest existing prior art.
 
 3. **Cross-venue arbitrage**: how does this venue interact with Hyperliquid, Binance, etc., for arbitrageurs? Likely they connect manually via account funding; no on-chain bridge needed.
 

@@ -276,6 +276,8 @@ Especially relevant: a Bitcoin-backed wrapped token (call it `zkBTC`) is just an
 
 This means: there can be multiple competing wrapped-BTC variants on the same L2, each from a different issuer with different trust assumptions. Holders pick the one whose bond and reputation they accept.
 
+For the trustless peg mechanism specifically, see [`../bitvm-bridge-research.md`](../bitvm-bridge-research.md). BitVM2 bridges (live: Bitlayer YBTC, Citrea cBTC) are the natural construction. Trust model: 1-of-N at setup, permissionless challenging at runtime. Worst case is funds-burned, not funds-stolen.
+
 ### 6.3 Cross-asset transactions
 
 A swap between two assets (e.g. zkBTC ↔ stablecoin) requires both verifiers to coordinate. Two natural approaches:
@@ -416,6 +418,8 @@ The unique combination is: **ZK privacy + sub-second soft finality + 6-conf hard
 ---
 
 ## 11. Next Steps
+
+Prerequisite reading: [`../PROTOCOL_STATUS.md`](../PROTOCOL_STATUS.md) — this design assumes the underlying Shielded CSV layer is fully implemented. The current codebase is missing the nullifier system, NISSHAC half-aggregation, sign-to-contract, and several other paper-specified primitives. The L2 design here is forward-looking; it cannot be deployed in production until those gaps are closed.
 
 1. **Formalize the slashing script** in Bitcoin Script with Taproot. Write test cases for honest withdrawal and slashing paths.
 
