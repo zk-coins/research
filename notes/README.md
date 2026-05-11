@@ -8,6 +8,7 @@ Working drafts and design notes that build on top of the upstream Shielded CSV /
 |---|---|
 | [l2-protocol-design.md](l2-protocol-design.md) | General L2 protocol design: issuer-bonded verifiers, two-tier finality (6-conf hard / verifier-sig soft), multi-token, force-exit. The foundation that everything else builds on. |
 | [sss-trust-model.md](sss-trust-model.md) | Comprehensive specification of the Single Signer Server (SSS) trust model: validity hierarchy, four receiver trust profiles, exhaustive worked examples for every conflict scenario, edge cases, interaction with bonds. The authoritative reference for finality and conflict resolution. |
+| [threat-model.md](threat-model.md) | Systematic adversarial analysis of every fraud and attack scenario — per actor (sender, receiver, SSS, miner), multi-actor conspiracies, bond/slashing attacks, force-exit attacks, economic, privacy, network, and cross-asset attacks. Each with prerequisites, effect, mitigation, and residual risk. Summary matrix at the end. |
 | [perpetuals-design.md](perpetuals-design.md) | Perpetual futures venue built on the issuer-bonded L2 model. Targets the Hyperliquid use case with privacy and Bitcoin settlement, without an own chain or token. Depends on `l2-protocol-design.md`. |
 
 ## Relationship to top-level documents
