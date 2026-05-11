@@ -4,7 +4,10 @@
 >
 > A perpetual futures exchange built on the issuer-bonded L2 protocol. Targets the Hyperliquid use case (high-volume on-chain perps) with privacy and Bitcoin settlement, without an own chain or token.
 
-This document depends on `l2-protocol-design.md` for the underlying primitives.
+This document depends on:
+- [`l2-protocol-design.md`](l2-protocol-design.md) — protocol primitives (assets, SSS, bond/slashing, force-exit)
+- [`sss-trust-model.md`](sss-trust-model.md) — validity hierarchy and receiver trust profiles
+- [`threat-model.md`](threat-model.md) — adversarial scenarios applicable to venue users
 
 ---
 
@@ -316,6 +319,8 @@ ForceExitClaim {
     challenge_period:      72 blocks (~12 hours) for operator to refute
 }
 ```
+
+The challenge period is **shorter than the L2 protocol default** of 144 blocks ([`l2-protocol-design.md`](l2-protocol-design.md) §7.1). The asset-specific shortening is justified by perpetuals' time-sensitive nature: an unresponsive operator on a perp venue causes ongoing PnL drift, so the protocol biases toward faster trader recovery. The trade-off is reduced operator response time for legitimate refutations; if this proves too tight in practice, the parameter can be revisited.
 
 If operator doesn't refute within the challenge period:
 - Open positions are closed at last anchored mark price

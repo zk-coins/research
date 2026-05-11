@@ -417,7 +417,7 @@ This is just S2 with extra adversarial effort by the sender. Defense is identica
 - **Force-exit** is the protocol's answer: users withdraw without SSS cooperation.
 - Force-exit cost (Bitcoin fees, challenge period delay) limits how harmful the trap can be.
 
-**Residual risk**: Force-exit delay (~12+ hours per [`l2-protocol-design.md`](l2-protocol-design.md) §7) is the floor. During that period, users cannot move funds.  
+**Residual risk**: Force-exit delay (one challenge period — 144 blocks ≈ 1 day per [`l2-protocol-design.md`](l2-protocol-design.md) §7, asset-configurable) is the floor. During that period, users cannot move funds.  
 **Affected profiles**: All holders.
 
 ### X9. SSS Self-Slashing (Voluntary Bond Burn)
