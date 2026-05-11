@@ -65,7 +65,7 @@ Bitcoin's standard security assumption is preserved: no adversary controls ≥50
 | **Software adversary** | Controls a piece of software the victim uses | Wallet, extension, library |
 | **Sender's accomplice** | Another party colluding with sender | Adds capabilities (e.g., another account, miner contact) |
 
-Most realistic adversaries combine several of these roles. The most dangerous combinations are catalogued in §7.
+Most realistic adversaries combine several of these roles. The most dangerous combinations are catalogued in *Multi-Actor Conspiracies* below.
 
 ---
 
@@ -754,11 +754,11 @@ This is the worst-case adversarial model. The trust model was explicitly designe
 **Residual risk**: Only if SSS is offline for the full challenge period AND no watcher refutes. Unlikely in practice.  
 **Affected profiles**: All holders (asset-level disruption).
 
-### F2. Force-Exit During Active Verifier Rotation
+### F2. Force-Exit During Active SSS Rotation
 
 **Actor**: Confused user, or attacker exploiting rotation timing  
 **Target**: The system's consistency  
-**Prerequisites**: Verifier rotation is in progress (old SSS still recognized, new one pending)  
+**Prerequisites**: SSS rotation is in progress (old SSS still recognized, new one pending)  
 **Mechanism**: User initiates force-exit against the old SSS, while the new SSS believes itself authoritative.  
 **Effect**: Ambiguity. Depends on rotation protocol semantics.  
 **Detection**: Force-exit and rotation inscriptions both visible.  

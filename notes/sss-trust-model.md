@@ -418,7 +418,7 @@ At block N+8, Alice colludes with the SSS to publish a competing SSS-signed T_AC
 
 The flip at N+9 catches receivers in P2/P3 who accepted at N+6. The flip back at N+12 protects only P4.
 
-This attack requires SSS cooperation (the SSS knowingly signs after-the-fact for a competing transaction). It is the classical SSS-equivocation use case → triggers slashing of the SSS bond if implemented (see §10).
+This attack requires SSS cooperation (the SSS knowingly signs after-the-fact for a competing transaction). It is the classical SSS-equivocation use case → triggers slashing of the SSS bond if implemented (see *Interaction with Bonds and Slashing* below).
 
 ### Example 6 — SSS+Miner Conspiracy Against SSS-Signed Transaction
 
@@ -500,7 +500,7 @@ SSS equivocates by signing two competing T_AB and T_AC (deliberately or due to b
 | N+4 onwards | The losing-party receivers (Bob if T_AC won; Carol if T_AB won) submit claims against the unlocked bond. |
 | ~ N+144 | Claims window closes. Bond distributed pro-rata (or first-come, per the bond contract). |
 
-The SSS is functionally dead after this — its key is publicly proven untrustworthy. The asset effectively reverts to Mode A unless the asset's creator declares a new SSS via the verifier-rotation mechanism (see [`l2-protocol-design.md`](l2-protocol-design.md) §7.3).
+The SSS is functionally dead after this — its key is publicly proven untrustworthy. The asset effectively reverts to Mode A unless the asset's creator declares a new SSS via the SSS-rotation mechanism (see [`l2-protocol-design.md`](l2-protocol-design.md) §7.3).
 
 ---
 
@@ -538,7 +538,7 @@ Alice's first transaction T_1 is SSS-signed and inscribed. Alice then sends a no
 
 ### Edge Case E — The SSS Signs a Transaction That the User Did Not Submit
 
-If the SSS were to fabricate a transaction (sign and inscribe without user authorization), the underlying user-signature would be missing. Any verifier checking the transaction would reject it as malformed — the SSS signature does not replace the user's account-key signature.
+If the SSS were to fabricate a transaction (sign and inscribe without user authorization), the underlying user-signature would be missing. Any party validating the transaction would reject it as malformed — the SSS signature does not replace the user's account-key signature.
 
 The SSS can only sign **on top of** a valid user-signed transaction. It has no authority to create transactions out of thin air.
 

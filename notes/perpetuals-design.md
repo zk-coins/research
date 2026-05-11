@@ -10,10 +10,10 @@ This document depends on `l2-protocol-design.md` for the underlying primitives.
 
 ## TL;DR
 
-- A perpetuals venue is itself an asset under the L2 protocol. Its issuer = verifier = exchange operator.
+- A perpetuals venue is itself an asset under the L2 protocol. Its issuer = SSS = exchange operator.
 - The operator bonds Bitcoin on-chain. Their bond economically backs sub-second soft-finality for trades.
 - Positions, orders, balances, PnL: all ZK-shielded. Only the operator sees order flow during their epoch.
-- Liquidations are verifier-triggered with ZK proof of trigger conditions. No mempool race.
+- Liquidations are SSS-triggered with ZK proof of trigger conditions. No mempool race.
 - Trade execution: sub-second. Bitcoin anchoring: every 1–10 min for hard finality.
 - No protocol token. No own chain. No federation hidden behind "decentralized" wording.
 
@@ -62,7 +62,7 @@ GenesisCommitment {
 
 The operator's role is multi-faceted:
 - Issuer (defines the venue)
-- Verifier (signs state transitions)
+- SSS (signs state transitions)
 - Sequencer (orders incoming trades)
 - Matcher (runs the order book matching engine)
 - Liquidator (triggers ZK-proven liquidations)
@@ -102,7 +102,7 @@ The account state transitions on every order placement, fill, liquidation, fundi
 
 ### 3.2 Margin currency
 
-The venue declares one or more accepted collateral assets at genesis. Typically: a wrapped BTC variant (e.g. `zkBTC` from a reputable issuer) and/or a stablecoin. Cross-asset margin requires the venue to interface with multiple L2 verifiers — or to operate the collateral asset itself.
+The venue declares one or more accepted collateral assets at genesis. Typically: a wrapped BTC variant (e.g. `zkBTC` from a reputable issuer) and/or a stablecoin. Cross-asset margin requires the venue to interface with multiple L2 SSSs — or to operate the collateral asset itself.
 
 For MVP, assume **single-asset collateral** (one wrapped BTC variant). Cross-asset margin is a phase-2 feature.
 
@@ -215,7 +215,7 @@ The operator sees everything in real time. This is the irreducible trust point �
 
 **Encrypted mempool for orders**: orders submitted under a threshold-decryption scheme that only opens after the matching epoch closes. Prevents operator front-running. Cost: latency increase to ~100–500 ms (decryption round).
 
-**Sequencer rotation across multiple operators**: harder than it sounds — see §10 for why this re-introduces cross-verifier fork problems unless carefully designed. Probably defer to v2.
+**Sequencer rotation across multiple operators**: harder than it sounds — see §10 for why this re-introduces cross-SSS fork problems unless carefully designed. Probably defer to v2.
 
 For v1, operator front-running is mitigated by **reputation + bond**: a documented case of operator front-running is a slashing condition (specifically defined in the bond contract). This is enforced by external auditors with privileged read access to the operator's order log (cryptographically authenticated to a snapshot that the operator cannot alter post-hoc).
 
@@ -361,7 +361,7 @@ To ship a credible v1 in 12–18 months, defer:
 
 | Feature | Rationale |
 |---|---|
-| Decentralized sequencer | Re-opens the cross-verifier fork problem from L2 design. Single operator + bond is sufficient for v1. |
+| Decentralized sequencer | Re-opens the cross-SSS fork problem from L2 design. Single operator + bond is sufficient for v1. |
 | Cross-margin | Single-position-isolated-margin is far simpler and acceptable for v1. |
 | Cross-asset margin | Single collateral asset, no multi-asset balancing. |
 | Encrypted mempool | Operator front-running mitigated by reputation + slashing v1. Encrypted mempool is a v2 hardening. |
@@ -425,7 +425,7 @@ Marketing language that **must not be used** (it would invite ridicule from soph
 
 - "Trustless" without qualification (it is economically trustless, not mathematically)
 - "Decentralized" while having a single operator
-- "No coordinator" while having a verifier/sequencer
+- "No coordinator" while having an SSS/sequencer
 - "Hyperliquid killer" (volume math doesn't support it)
 - "Sub-second Bitcoin finality" (Bitcoin finality is 60 min; soft finality is sub-second)
 
