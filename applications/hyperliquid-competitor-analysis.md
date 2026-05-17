@@ -1,9 +1,11 @@
 # zkCoins als Hyperliquid-Konkurrent: Vollständige Analyse
 
-> Analyse erstellt am 2026-05-08
-> Basierend auf: Deep-Dive aller 5 zkCoins Repos (app, server, docs, research, marketing)
+> Analyse erstellt am 2026-05-08 · letzte Konsistenz-Aktualisierung 2026-05-17
+> Basierend auf: Deep-Dive aller zkCoins Repos (app, server, docs, research, marketing)
 >
-> **Product Vision (basiert auf Variante C):** [zkPerps Vision](https://github.com/zk-coins/marketing/blob/develop/strategy/zkperps/vision.md)
+> **Product Vision (aktuelle Brand-Architektur A — zkCoins ist alles, kein separates "zkPerps"-Sub-Brand):** [zkCoins Exchange Vision](https://github.com/zk-coins/marketing/blob/develop/strategy/exchange/vision.md) · Live unter [zkcoins.exchange](https://zkcoins.exchange)
+>
+> Die in diesem Dokument durchgespielten Architektur-Varianten (insbesondere Variante C als "Favoritenlösung") behandeln zkPerps als eigenes Vertikal-Brand. Die finale Entscheidung war stattdessen Brand A: "zkCoins Exchange" als ein Produkt der zkCoins-Familie, gleichrangig zu Wallet (zkcoins.app), Explorer (zkcoins.space), Whitepaper (zkcoins.com) und Brand-Hub (zkcoins.info). Die technische Analyse unten bleibt unverändert gültig — nur das Naming und die Brand-Architektur sind anders entschieden.
 
 ---
 
@@ -773,7 +775,10 @@ Und adressiert die grössten Schwächen von Hyperliquid:
 
 ### Der Name
 
-> **zkPerps** — Private Perpetual Futures. Settled on Bitcoin.
+> **zkCoins Exchange** — Private Perpetual Futures. Settled on Bitcoin.
+>
+> Vertikal-Bezeichner intern: "Exchange". Domain: [zkcoins.exchange](https://zkcoins.exchange).
+> (Frühere Arbeitstitel "zkPerps" wurden mit der Entscheidung für Brand A verworfen — siehe Header dieses Dokuments und [marketing/strategy/exchange/vision.md](https://github.com/zk-coins/marketing/blob/develop/strategy/exchange/vision.md).)
 
 ### Zusammenfassung in einem Satz
 
