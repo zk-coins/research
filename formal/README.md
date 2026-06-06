@@ -15,40 +15,44 @@ A model checker answers both by exhaustive search over a bounded scope: no count
 
 ## Models
 
-| Path | Property checked | Spec sections |
-|---|---|---|
-| `nullifier-chaining/` | No coin is spent twice in the finalised ledger, even under Bitcoin reorgs | Proofs §2.1 clause 4; On-chain §3.6 / §3.7 |
+| Path | Module | Property checked | Spec sections |
+|---|---|---|---|
+| `nullifier-chaining/` | `FirstSpendWins` | No coin is spent twice in the canonical Bitcoin log, even under reorgs | On-chain §3.5 / §3.6 / §3.7 / §3.9 / §3.10; Architecture §6.6 |
 
 (Further models — balance conservation §2.1 clause 3, receive-anchoring §2.3.3 — slot in as sibling directories.)
 
-## `nullifier-chaining/` — TLA+
+## `nullifier-chaining/` — `FirstSpendWins.tla`
 
-Models the nullifier-accumulator chaining over a thin Bitcoin anchor:
+Models the zkCoins post-#21 / post-#25 design: every node admits a `SpendRecord` only when its **published-in-the-clear** nullifiers are disjoint from the locally-rebuilt accumulator (On-chain §3.6 step 6), and Bitcoin produces no canonical reorgs deeper than 5 blocks (Architecture §6.6). The model verifies that, under those rules, no coin is ever spent twice in the canonical log.
 
-- **Anchor (TLA+ `A3`).** Bitcoin is modelled as nothing more than an append-only, totally-ordered log of inscribed batches with eventual finality: the finalised prefix never changes; the last `K` batches (the pending zone) may be reorged away. No Script, UTXO, or mining is modelled — the protocol uses none of it. This is the standard honest-majority / k-confirmation anchor.
-- **Discipline.** Every transition proves its input nullifiers are **non-members** of the accumulator as it stands just before it, then inserts them; per-transition `prev_root → post_root` roots chain within a batch and across batch boundaries.
-- **Claim.** `NoDoubleSpend`: no nullifier is inserted by two distinct finalised transitions. Transient duplicates between a pending branch and a reorged-away branch do not count — only the finalised order is the ledger.
+- **Anchor.** Bitcoin is modelled as nothing more than an append-only, totally-ordered log of admitted `SpendRecord`s with a bounded reorg depth `K − 1`. The completed prefix (records at depth ≥ `K`) is immutable per the spec's `K = 6` finality threshold.
+- **Discipline.** A record is admitted only if its published `nf` set is disjoint from the running accumulator (first-spend-wins). The accumulator absorbs nfs **at admission**, not at finality — matching On-chain §3.10's "admission gates the accumulator, finality gates receiver credit" asymmetry.
+- **Claim.** `NoDoubleSpend`: no nullifier appears in two distinct records of the current canonical log. Because completed records never reorg out, this extends to "no two records ever in `completed` share an nf" — i.e. the `completed` state from §3.10 is absolute under the reorg-bound assumption.
+
+### Compared to the earlier `NullifierChaining.tla` (removed)
+
+The previous version of this model encoded the pre-#21 per-batch `prev_root → post_root` chaining: each transition carried claimed roots, an aggregator pattern bundled up to `MAX_IN_COINS = 8` source proofs, and double-spend protection lived in-circuit. `zk-coins/docs#21` removed all of that — spent nullifiers are now published verbatim on-chain, and `docs#25` formalised the three-state lifecycle in On-chain §3.10. The property the model checks (no double-spend) is unchanged; the mechanism it encodes is dramatically simpler, and so is the model: no claimed roots, no `Chains` predicate, no aggregator, no recursion-shape probing. The full state space at 4 coins, `K = 6`, log bound 5 is checked in seconds.
 
 ### Modelling assumptions (stated openly)
 
 A proof is only meaningful relative to what it assumes. This model assumes:
 
-- **A1 · Root binds set.** The accumulator root is abstracted by the set of nullifiers it commits to; a prover lying about a root is *not* modelled. That binding is the SNARK knowledge-soundness + SMT collision-resistance assumption — a separate proof obligation.
-- **A2 · Nullifier injectivity.** `nf = H(nk, coin.identifier)` is injective, so the model identifies a nullifier with the coin it spends.
-- **A3 · Thin Bitcoin anchor** (above).
+- **A1 · Nullifier injectivity.** `nf = Hc("Nullifier", nk ‖ coin.identifier)` is injective, so the model identifies a nullifier with the coin it spends.
+- **A2 · Thin Bitcoin anchor.** Bitcoin is an append-only, totally-ordered log of admitted records; reorgs drop at most `K − 1` records from the tail (Architecture §6.6: "no canonical reorgs deeper than 5 blocks"). No Script, UTXO, or mining.
+- **A3 · Admission predicate abstracted to first-spend-wins.** The other §3.5+§3.6 admission checks (parser, `block_anchor` bounds, signature validity, nullifier-`inr` binding, canonical order) reject ill-formed records but do not affect the nullifier-set logic this model verifies, so they are folded into the proposer's freedom (records range over `SUBSET Nullifier ∖ {∅}`).
 
-These assumptions are the boundary of the proof: the model certifies the protocol logic *given* them. Discharging A1 belongs to the proof-system layer, not here.
+Discharging the abstracted checks belongs to the proof-system / signature / structural layers, not here.
 
 ### Running it
 
 Requires TLA+'s `tla2tools.jar` (the [TLA+ tools](https://github.com/tlaplus/tlaplus/releases)) and a JRE:
 
 ```sh
-java -jar tla2tools.jar -config NullifierChaining.cfg NullifierChaining.tla
+java -jar tla2tools.jar -config FirstSpendWins.cfg FirstSpendWins.tla
 ```
 
-The config is small but exhaustive (3 coins, finality depth `K = 2`, batches of up to 2 transitions). Expected result: all invariants hold, no counterexample.
+The config is small but exhaustive: `Nullifier = {n1, n2, n3, n4}`, `K = 6`, `Bound = 5`. Expected result: `TypeOK`, `NoDoubleSpend`, and `AdmissionFreshness` all hold; no counterexample.
 
 ### Watching the model checker earn its keep
 
-In `NullifierChaining.tla`, delete the conjunct marked `[GATE]` in `Chains(...)` (the non-membership check) and re-run TLC. It returns a finalised double-spend trace within seconds — demonstrating that the model distinguishes the correct chaining discipline from a flawed one. Restore the conjunct and the property holds again.
+In `FirstSpendWins.tla`, delete the conjunct marked `[GATE]` in the `Admit` action (the `r ∩ Acc(log) = {}` first-spend-wins check) and re-run TLC. It returns a double-spend trace within seconds — demonstrating that the model distinguishes the correct admission discipline from a flawed one. Restore the conjunct and the property holds again.
