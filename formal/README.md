@@ -62,7 +62,7 @@ Each property carries the same number as in the [Pass-3 audit §4](../audit/2026
 
 ## Axiomatized assumptions
 
-The following primitives are taken as ideal functionalities — Apalache does not prove them; it proves the protocol composes them correctly. These mirror the Pass-3 audit's A1–A14.
+The following primitives are taken as ideal functionalities — Apalache does not prove them; it proves the protocol composes them correctly. A1–A14 mirror the Pass-3 audit. A15–A17 are additional **derived-primitive** axioms added 2026-06-06 to reduce TLA+ modeling effort without hollowing the proof (each follows from a published reduction to A1–A14 above).
 
 | ID | Axiom | Used by |
 |---|---|---|
@@ -80,6 +80,9 @@ The following primitives are taken as ideal functionalities — Apalache does no
 | A12 | Bitcoin honest-majority + no reorgs ≥ 6 blocks | P2, P6 |
 | A13 | Per-node eclipse resistance (own bitcoind) | P6 |
 | A14 | TLS 1.2 EMS / TLS 1.3 / Tor v3 for the pull endpoint | P10 |
+| **A15** | **Half-aggregation soundness** — §3.3's multi-scalar check `s_agg·G == Σⱼ aⱼ·(Rⱼ + eⱼ·Pkⱼ)` with coefficients `aⱼ = H(z ‖ le32(j))`, `z = H("zkCoins/v1/HalfAgg" ‖ …)` accepts iff every constituent BIP-340 signature `(Rⱼ, sⱼ)` is valid under `(Pkⱼ, mⱼ)`. Reduction: standard Stinson-Wei aggregation defense; the transcript-bound coefficients eliminate rogue-key attacks; conditional on A7 (BIP-340 EUF-CMA). Without A15, `Onchain.tla` would have to model the elliptic-curve arithmetic byte-for-byte. | P1, P2 |
+| **A16** | **Merkle / SMT collision-resistance lifting** — §1.7.5 Poseidon Merkle tree (over leaf lists) and §1.7.6 sparse Merkle trees (NfAcc, CoinHist) produce collision-resistant roots: two distinct leaf-sets / key-value maps producing the same root imply a Poseidon collision. Reduction: standard Merkle-tree CR proof; per-level domain separation in `Hc("…/Node", i, l, r)` rules out cross-level confusion; conditional on A3. Without A16, every property invoking a Merkle root would have to model the tree hash-by-hash. | P1, P2, P3, P6 |
+| **A17** | **`serialize(AccountState)` canonical** — §1.7.4's byte serialization is **injective**: two distinct `AccountState` values produce distinct byte strings (no two map to the same `ash`). Reduction: §1.7.4 pins field order, omits-zero balances, requires ascending `asset_id` sort, and fixes widths; together these make collisions correspond exactly to byte-string equality — provably injective by direct construction (not even conditional on a cryptographic assumption). Without A17, `Foundations.tla` would have to model byte-string concatenation rules. | P3, P6 |
 
 ## Directory layout
 

@@ -27,7 +27,7 @@ Every property in the [Pass-3 audit §4](../audit/2026-06-06.03.md):
 - P9 Recovery Completeness
 - P10 Capability Discipline
 
-Each is verified as a TLA+ invariant or temporal property using Apalache, with the spec's cryptographic primitives axiomatized as ideal functionalities (A1–A14; see [README §Axiomatized assumptions](./README.md#axiomatized-assumptions)).
+Each is verified as a TLA+ invariant or temporal property using Apalache, with the spec's cryptographic primitives axiomatized as ideal functionalities (A1–A17; see [README §Axiomatized assumptions](./README.md#axiomatized-assumptions)). A1–A14 are the established-primitive set inherited from the Pass-3 audit; A15–A17 are **derived-primitive axioms** added 2026-06-06 (half-aggregation soundness, Merkle/SMT CR lifting, `serialize(AccountState)` injectivity) — each follows from a published reduction to A1–A14 and shaves modeling effort without hollowing the proof.
 
 ### 1.2 Out of scope
 
@@ -66,6 +66,18 @@ A verification result of the form *"under axioms A1–A14, the protocol invarian
 
 ## 3 · Phases and deliverables
 
+**Total estimate:** 1–1.5 weeks continuous, 2 weeks worst case (reduced from initial 1.5–2 weeks by adopting A15–A17).
+
+| Phase | Target time | Output |
+|---|---|---|
+| 0 Setup | 0.5–1 day | Apalache running, legacy `FirstSpendWins.tla` ported to unbounded |
+| 1 TLA+ modeling | 2–3 days | Complete `formal/module/` (8 files) |
+| 2 Property formalization | 1–2 days | `property/Pn_<Name>/property.tla` for P1–P10 |
+| 3 Apalache verification | 3–5 days | `certificate.txt` per property |
+| 4 Cross-check vs Pass-3 | 1–2 days | Reconciliation table, divergences logged |
+| 5 Documentation + sign-off | 1–2 days | Audit doc references certificates, reproducibility verified |
+| 6 Residual escalation | (only if needed) | per-property fallback per §4 |
+
 ### Phase 0 — Setup (target: 0.5–1 day)
 
 - Install Apalache on the verification host (m5me or local).
@@ -73,20 +85,20 @@ A verification result of the form *"under axioms A1–A14, the protocol invarian
 - Port the existing [`nullifier-chaining/FirstSpendWins.tla`](./nullifier-chaining/FirstSpendWins.tla) from TLC-compatible to Apalache-compatible form; reproduce its property as an **unbounded** verification (no `Bound`). Demonstrates the toolchain works end-to-end.
 - **Deliverable:** `formal/property/P02_NoDoubleSpend/` with a passing unbounded Apalache run.
 
-### Phase 1 — Formal modeling of the specification (target: 3–5 days)
+### Phase 1 — Formal modeling of the specification (target: 2–3 days, was 3–5 days before A15–A17)
 
-Build the `formal/module/` directory. Each module is a TLA+ file modeling one spec section.
+Build the `formal/module/` directory. Each module is a TLA+ file modeling one spec section. The A15–A17 axioms collapse what would otherwise be byte-level / curve-arithmetic modeling into ideal-operator calls — saving 1–2 days off Phase 1.
 
-| Module | Models | Source spec sections |
-|---|---|---|
-| `Foundations.tla` | Types: Address, Pkᵢ, ash, ocr, inr, nf, asset_id, AccountState, Coin, CoinProof, Invoice (post-F9) | §1 |
-| `Proofs.tla` | Compliance predicate `C` as a TLA+ operator; clauses 1–9; witness type; canonical empty account | §2.1, §2.2 |
-| `Onchain.tla` | Admission state machine (§3.5 parser + §3.6 scanner); first-spend-wins with within-record rollback (F16); nullifier accumulator; §3.10 lifecycle | §3.5, §3.6, §3.7, §3.9, §3.10 |
-| `Transport.tla` | DeliveryEvent + ACK with `ack_nonce` (F17); k-replication; self-delivery | §4.2, §4.3, §4.6 |
-| `Access.tla` | OwnershipProof, GrantProof, zkview, zkavk, BalanceAttestation; PullChallenge with `chan_bind` | §5.1 — §5.8 |
-| `Architecture.tla` | Multi-node composition; latest-state selection (F12); reorg-bound assumption | §6.3, §6.6 |
-| `Assumptions.tla` | Axiomatized A1–A14 as TLA+ operators with stated security properties | — |
-| `Adversary.tla` | PPT adversary as nondeterministic environment; capabilities per Pass-3 §2 | — |
+| Module | Models | Source spec sections | Axioms used |
+|---|---|---|---|
+| `Foundations.tla` | Types: Address, Pkᵢ, ash, ocr, inr, nf, asset_id, AccountState, Coin, CoinProof, Invoice (post-F9) | §1 | A17 (serialize) |
+| `Proofs.tla` | Compliance predicate `C` as a TLA+ operator; clauses 1–9; witness type; canonical empty account | §2.1, §2.2 | A1, A2, A3, A16 |
+| `Onchain.tla` | Admission state machine (§3.5 parser + §3.6 scanner); first-spend-wins with within-record rollback (F16); nullifier accumulator; §3.10 lifecycle | §3.5, §3.6, §3.7, §3.9, §3.10 | A7, A12, A15, A16 |
+| `Transport.tla` | DeliveryEvent + ACK with `ack_nonce` (F17); k-replication; self-delivery | §4.2, §4.3, §4.6 | A7, A8, A9, A10, A11 |
+| `Access.tla` | OwnershipProof, GrantProof, zkview, zkavk, BalanceAttestation; PullChallenge with `chan_bind` | §5.1 — §5.8 | A5, A7, A14 |
+| `Architecture.tla` | Multi-node composition; latest-state selection (F12); reorg-bound assumption | §6.3, §6.6 | A12, A13 |
+| `Assumptions.tla` | Axiomatized A1–A17 as TLA+ operators with stated security properties | — | — |
+| `Adversary.tla` | PPT adversary as nondeterministic environment; capabilities per Pass-3 §2 | — | — |
 
 Process: one subagent per module in parallel; harmonization pass at the end.
 
@@ -173,7 +185,7 @@ If a property reaches Phase 6, it is the only one outside the 100% guarantee unt
 | Real spec bug found (counter-example) | medium | spec PR + audit revision | desired outcome: that's what verification is for |
 | Apalache tool bug | low | debugging detour | report upstream; pin known-good version |
 | docs#40 (Variant-2) merges mid-Phase-1 | high | rework §3 modeling | model against docs#40 branch from the start |
-| Time blowout past 2 weeks | medium | extend; the goal is 100%, not 100%-by-date | keep daily progress diary |
+| Time blowout past 1.5 weeks | medium | extend; the goal is 100%, not 100%-by-date | keep daily progress diary |
 
 ## 5 · Dependencies
 
