@@ -7,6 +7,11 @@ Research, upstream references, protocol analysis, and primary sources for the [S
 ```
 research/
 ├── shieldedcsv-paper.pdf          # The paper (ePrint 2025/068, 914 KB)
+├── glock-paper.pdf                # Glock: Garbled Locks for Bitcoin (ePrint 2025/1485, Aug 2025)
+├── argo-mac-paper.pdf             # Argo MAC: Garbling with Elliptic Curve MACs (ePrint 2026/049, Jan 2026)
+├── bitvm-paper.pdf                # BitVM: Quasi-Turing Complete Computation (ePrint 2024/1995)
+├── bitvm2-bridge-paper.pdf        # BitVM2: Bridging Bitcoin to Second Layers
+├── bitvm-bridge-research.md       # zkBTC bridge analysis: Glock is the chosen path
 ├── primary-sources/               # Archived full-text articles
 │   ├── blockstream-blog.md        # "Bitcoin's Shielded CSV Protocol Explained" (Dec 2024)
 │   ├── mailing-list.md            # Bitcoin-Dev thread: Nick, Riard, Chen (Sep 2024)
@@ -32,6 +37,19 @@ See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of th
 - Published: January 2025
 - ePrint: [2025/068](https://eprint.iacr.org/2025/068)
 - Local copy: [shieldedcsv-paper.pdf](shieldedcsv-paper.pdf)
+
+## Bridge Construction (zkBTC path)
+
+For a trustless BTC↔zkCoins bridge, we have committed to **Glock** (Alpen Labs / Liam Eagen) — no BitVM2 intermediate, no federation-V0. See [bitvm-bridge-research.md](bitvm-bridge-research.md) for the analysis and the trade-offs.
+
+| Paper | Authors | Date | Local copy |
+|---|---|---|---|
+| **Glock: Garbled Locks for Bitcoin** | Liam Eagen (Alpen Labs) | Aug 2025 | [glock-paper.pdf](glock-paper.pdf) · [ePrint 2025/1485](https://eprint.iacr.org/2025/1485) |
+| **Argo MAC: Garbling with Elliptic Curve MACs** | Liam Eagen, Ying Tong Lai | Jan 2026 | [argo-mac-paper.pdf](argo-mac-paper.pdf) · [ePrint 2026/049](https://eprint.iacr.org/2026/049) |
+| **BitVM2: Bridging Bitcoin to Second Layers** | BitVM team | 2024 | [bitvm2-bridge-paper.pdf](bitvm2-bridge-paper.pdf) · [bitvm.org/bitvm_bridge.pdf](https://bitvm.org/bitvm_bridge.pdf) |
+| **BitVM: Quasi-Turing Complete Computation** | Lukas Aumayr et al. | 2024 | [bitvm-paper.pdf](bitvm-paper.pdf) · [ePrint 2024/1995](https://eprint.iacr.org/2024/1995) |
+
+Glock and Argo are kept side by side because Robin Linus co-authored Argo and the two constructions are sister directions in the same research line; Glock is the closer-to-mainnet path. BitVM and BitVM2 are kept as the comparison baseline even though we are not building on them.
 
 ## Upstream Repositories
 
