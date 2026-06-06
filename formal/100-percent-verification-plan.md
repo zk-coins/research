@@ -250,11 +250,12 @@ A `Makefile` or `verify.sh` at the directory root executes every verification in
 
 Even at 100% under this definition, the following remain:
 
-- **A1–A14 are axioms.** If Poseidon-Goldilocks falls to a new algebraic attack (R1, narrowing through Dec 2026), every property depending on A3/A4 needs re-evaluation under the new bound. Apalache certificates are conditional on the axioms.
+- **A1–A17 are axioms.** If Poseidon-Goldilocks falls to a new algebraic attack (R1, narrowing through Dec 2026), every property depending on A3/A4 needs re-evaluation under the new bound. Apalache certificates are conditional on the axioms.
+- **M1–M4 are meta-assumptions.** Apalache soundness, TLA+↔spec fidelity, adversary-model completeness, property-statement correctness. These cannot be axiomatized inside the verification because they are *about* the verification itself. See [README §Meta-assumptions](./README.md#meta-assumptions-the-unprovable-foundation) for the full inventory and mitigations. The load-bearing items are M2 (translation fidelity) and M4 (property correctness); both addressed by Pass-4 cross-check in Phase 4.
 - **The reference implementation is separate.** Apalache verifies the spec; F15 still gates mainnet (the canonical verifier-data artefact must exist).
-- **Novel adversary capabilities not in the Pass-3 §2 model** are by definition uncatchable here. The adversary model itself is human-authored.
+- **Novel adversary capabilities not in the Pass-3 §2 model** are by definition uncatchable here. The adversary model itself is human-authored (M3).
 
-These items are explicit in the §1.2 out-of-scope section and in the audit's §8 residual inventory. 100% means "100% under the stated axioms and adversary model" — the strongest claim a verification can make, and the honest claim.
+These items are explicit in the §1.2 out-of-scope section and in the audit's §8 residual inventory. 100% means "100% under the stated axioms (A1–A17), meta-assumptions (M1–M4), and adversary model" — the strongest claim a verification can make, and the honest claim.
 
 ## 10 · Authority
 
