@@ -131,7 +131,7 @@ formal/
 
 ## Status
 
-Initialised 2026-06-06. Plan document complete; module modeling pending. See [`100-percent-verification-plan.md`](./100-percent-verification-plan.md) §Progress for live status per property.
+Initialised 2026-06-06. Phase 0 complete (P02 verified unbounded). Phase 1 complete: all eight `module/` files type-check and the five state-machine modules pass an Init/Next reachability smoke check (run `module/verify-modules.sh`). See [`100-percent-verification-plan.md`](./100-percent-verification-plan.md) §Progress for live status per property.
 
 ## Reproducibility
 
