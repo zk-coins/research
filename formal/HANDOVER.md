@@ -1,8 +1,8 @@
 # Handover: zkCoins 100% Logical Verification Initiative
 
-**You** (the receiving Claude session) are about to execute a formal-verification initiative against the zkCoins v1 specification. This document is your **complete bootstrap** — you should be able to start from zero conversational context and execute end-to-end. The prior session that planned this work is now closed; everything that session knew is here.
+**You** (the receiving agent session) are about to execute a formal-verification initiative against the zkCoins v1 specification. This document is your **complete bootstrap** — you should be able to start from zero conversational context and execute end-to-end. The prior session that planned this work is now closed; everything that session knew is here.
 
-**Project lead (the user):** TaprootFreak. Communicates in German, expects German responses; code/commits/PRs in English. Has full context — do not over-explain zkCoins to them, but do confirm before any irreversible action.
+**Project lead (the user):** communicates in German, expects German responses; code/commits/PRs in English. Has full context — do not over-explain zkCoins to them, but do confirm before any irreversible action.
 
 ---
 
@@ -63,7 +63,7 @@ Do not start TLA+ work until you have read all four.
 
 ## 4 · Hard rules (do not violate)
 
-These come from the user's global instructions (`/Users/me/.claude/CLAUDE.md`) and from incidents earlier in this initiative. Internalize them.
+These come from the project lead's global working-agreement and from incidents earlier in this initiative. Internalize them.
 
 ### 4.1 Language
 
@@ -80,7 +80,7 @@ These come from the user's global instructions (`/Users/me/.claude/CLAUDE.md`) a
 - **Commit-message convention:**
   - First line: `<scope>: <imperative summary>` (e.g. `formal: model Onchain admission state machine`)
   - Body: explain the why + the what (multi-line OK)
-  - **No `Co-Authored-By: Claude` footer.** No Claude/Anthropic mention anywhere.
+  - **No AI-authorship footer** (no `Co-Authored-By` trailer). No AI-tool/vendor mention anywhere in commits or PRs.
 
 ### 4.3 Before every commit
 
@@ -168,8 +168,8 @@ gh pr list --repo zk-coins/<repo> --state open
 
 ### 5.4 Workspace
 
-- Your CWD for this work: `/Users/me/Workspace/dd9e4cef-0e04-4a7f-866c-8a41efb4647b/zk-coins/research`
-- `docs` clone is at `/Users/me/Workspace/dd9e4cef-0e04-4a7f-866c-8a41efb4647b/zk-coins/docs` — read-only for this initiative (you reference the spec; you don't modify it unless a verification surfaces a finding that warrants a docs PR).
+- Your CWD for this work: a local clone of `zk-coins/research` in the session workspace.
+- A sibling clone of `zk-coins/docs` — read-only for this initiative (you reference the spec; you don't modify it unless a verification surfaces a finding that warrants a docs PR).
 
 ---
 
@@ -193,8 +193,8 @@ Ask the user. Recommend (b) if `docs#40` is stable, (a) otherwise.
 
 Apalache needs a host with enough RAM (≥ 8 GB recommended for the larger properties). Options:
 
-- **Local Mac (M5ME or laptopm3)** — interactive iteration. Reasonable.
-- **m5me-remote** — for long-running verification (nightly runs). Has `--dangerously-skip-permissions` requirement for Claude Code (see user memory).
+- **A local Apple Silicon workstation** (ample RAM for the larger properties) — interactive iteration. Reasonable.
+- **A remote always-on host** — for long-running verification (nightly runs).
 
 Ask the user where Apalache goes.
 
@@ -369,9 +369,9 @@ Any property reaching Phase 6 is outside the 100% guarantee until resolved. Make
 - One sentence per update is almost always enough.
 - End with: what's next, OR an open question.
 
-### 8.2 Briefings to other Claude sessions (m5me / hand-offs)
+### 8.2 Briefings to other agent sessions (hand-offs)
 
-If you need to hand off to ANOTHER Claude session (continuing this work or running something in parallel):
+If you need to hand off to ANOTHER agent session (continuing this work or running something in parallel):
 
 - **One `do script` message, not 2-5 parts.** Quote escaping is solved by putting the whole message in a heredoc rather than splitting.
 - Briefing must be self-contained — the receiving session has no chat history.
@@ -384,7 +384,7 @@ The user is reporting that a PR they were reviewing has been merged. You:
 2. Watch the develop CI on the merge commit.
 3. Report green or red.
 
-Do NOT relay this to an m5me session unless the merge specifically affects that session's task.
+Do NOT relay this to another session unless the merge specifically affects that session's task.
 
 ### 8.4 What you should self-check vs ask the user
 
