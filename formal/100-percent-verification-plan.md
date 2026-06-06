@@ -1,12 +1,12 @@
 # 100% Logical Verification Plan — zkCoins v1 Specification
 
 **Initiated:** 2026-06-06
-**Owner:** project lead, via Claude (AI execution)
-**Spec baseline:** [`zk-coins/docs@a7a9f97`](https://github.com/zk-coins/docs/commit/a7a9f97) — develop tip after F1, F16, F17, F9, F12, and the anchor-polish + profile-preimage-pin merges of 2026-06-06. Subject to advance once [`docs#40`](https://github.com/zk-coins/docs/pull/40) (Variant-2 on-chain redesign) merges; see §Dependencies.
+**Owner:** project lead
+**Spec baseline:** [`zk-coins/docs@b6972b8`](https://github.com/zk-coins/docs/commit/b6972b8) — current `develop` tip, equal to the prior baseline `a7a9f97` plus exactly one commit: [`docs#40`](https://github.com/zk-coins/docs/pull/40) (Variant-2 constant-per-batch on-chain redesign), **merged 2026-06-06**. The baseline was advanced from `a7a9f97` to `b6972b8` per decision **D1** (model against the post-`docs#40` form; see §Dependencies). The earlier `a7a9f97` pin and the Pass-3 audit predate `docs#40`; §3-dependent properties (P2, P5, P6) are therefore reconciled against the new on-chain layer in Phase 4.
 
 ## 0 · Declaration of intent
 
-The project lead has declared on 2026-06-06: *"ich will nicht 'richtung 100%'. ich will volle 100%, dafür sind wir hier!"* This document is the operational plan to reach that target — every spec-level property mechanically proven, not manually argued.
+The project lead has declared on 2026-06-06 that the target is not "towards 100%" but **the full 100%**. This document is the operational plan to reach that target — every spec-level property mechanically proven, not manually argued.
 
 This goal supersedes the Pass-3 audit's confidence labels (which were honest game-style manual arguments). Pass-3 stays as a historical artifact and as the priors / cross-check oracle for the verification work; the **mechanical certificates produced here become the load-bearing evidence.**
 
@@ -80,7 +80,7 @@ A verification result of the form *"under axioms A1–A14, the protocol invarian
 
 ### Phase 0 — Setup (target: 0.5–1 day)
 
-- Install Apalache on the verification host (m5me or local).
+- Install Apalache on the verification host (local Apple Silicon workstation).
 - Verify Apalache version + basic smoke test.
 - Port the existing [`nullifier-chaining/FirstSpendWins.tla`](./nullifier-chaining/FirstSpendWins.tla) from TLC-compatible to Apalache-compatible form; reproduce its property as an **unbounded** verification (no `Bound`). Demonstrates the toolchain works end-to-end.
 - **Deliverable:** `formal/property/P02_NoDoubleSpend/` with a passing unbounded Apalache run.
@@ -191,18 +191,21 @@ If a property reaches Phase 6, it is the only one outside the 100% guarantee unt
 
 ### Hard
 
-- **docs#40** ([Variant-2 on-chain redesign](https://github.com/zk-coins/docs/pull/40)) — the on-chain layer model in `Onchain.tla` MUST be built against the post-docs#40 form. Three options:
-  1. **Wait for docs#40 to merge** — clean baseline, no rework.
-  2. **Model against the docs#40 branch tip** — earliest start, requires re-base if docs#40 changes.
-  3. **Model against current develop, retrofit after** — fastest start, but Phase 1 of Onchain.tla becomes throwaway work.
+- **docs#40** ([Variant-2 on-chain redesign](https://github.com/zk-coins/docs/pull/40)) — **RESOLVED.** `docs#40` merged into `develop` on 2026-06-06 (`b6972b8`), making the clean post-redesign baseline available immediately. Per decision **D1**, the spec baseline was advanced from `a7a9f97` to `b6972b8` and `Onchain.tla` (and every §3-dependent property) is modelled against the post-`docs#40` form — equivalent to the original option (1) "wait for merge", now that the merge has happened. No retrofit work is incurred.
 
-  **Recommendation: (1) wait, OR (2) model against branch.** The decision is the project lead's; documented here so it's not implicit.
+  Net change vs the pre-`docs#40` design that `Onchain.tla`/P2 must reflect: the on-chain object is now a constant-size `BatchInscription` carrying `prev_root → new_root` (not per-record raw nullifiers); nullifiers live off-chain in a `BatchBundle`; first-spend-wins is enforced by (a) sequential `prev_root` continuity + stale-rejection and (b) the `AggregateBatchProof`'s in-circuit obligation that `new_root = SMT.insert_many(prev_root, batch_nullifiers)` with every batch nullifier a non-member of `prev_root`. The abstract accumulator-level no-double-spend invariant is unchanged.
+
+### Decisions (resolved 2026-06-06)
+
+- **D1 — baseline:** advance to `b6972b8` (post-`docs#40`). Resolved above.
+- **D2 — verification host:** Apalache runs locally/interactively on the project's Apple Silicon workstation. Pinned tool versions recorded per-property in `notes.md`.
+- **D3 — derived-primitive axioms A15–A17:** accepted (half-aggregation soundness, Merkle/SMT CR lifting, `serialize(AccountState)` injectivity); each reduces to A1–A14. Note: `docs#40` renamed §3.3 "Half-aggregation" → "Off-chain signature handling" and moved aggregation into the `AggregateBatchProof` witness as an optimisation; A15's applicability to the new form is re-checked when `Onchain.tla` is built.
 
 ### Soft
 
 - Apalache tooling on the verification host.
 - TLA+ + Apalache local IDE (optional, helps iteration).
-- Reproducibility on m5me for nightly verifications.
+- Reproducibility on an always-on workstation for nightly verifications.
 
 ## 6 · Progress
 
@@ -211,7 +214,7 @@ Per-property status — updated as Phase 3 advances.
 | Property | Phase | Apalache status | Cross-check vs Pass-3 | Certificate |
 |---|---|---|---|---|
 | **P1** No-Forgery | not started | — | — | — |
-| **P2** No-Double-Spend | Phase 0 (port) | TLC bounded only (legacy `FirstSpendWins.tla`) | matches Pass-3 HIGH | pending Apalache port |
+| **P2** No-Double-Spend | **Phase 0 done** (abstract level; full §3 model in Phase 1–3) | **verified unbounded** (inductive invariant, Apalache 0.58.0) | confirmed (Pass-3 HIGH ↔ verified) at the abstract accumulator level | [`property/P02_NoDoubleSpend/certificate.txt`](./property/P02_NoDoubleSpend/certificate.txt) |
 | **P3** Balance Conservation | not started | — | — | — |
 | **P4** Zero-Knowledge | not started | — | — | — |
 | **P5** On-chain Privacy | not started | — | — | — |
@@ -259,4 +262,4 @@ These items are explicit in the §1.2 out-of-scope section and in the audit's §
 
 ## 10 · Authority
 
-This plan was produced by Claude on 2026-06-06 in response to the project lead's declaration *"wir müssen das vollständig dokumentieren"*. The document is the canonical reference for the initiative; updates land via PR on `zk-coins/research` and supersede any earlier version on merge.
+This plan was produced on 2026-06-06 in response to the project lead's directive to document the verification effort completely. The document is the canonical reference for the initiative; updates land via PR on `zk-coins/research` and supersede any earlier version on merge.
