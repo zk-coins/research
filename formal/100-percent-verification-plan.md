@@ -213,16 +213,16 @@ Per-property status — updated as Phase 3 advances.
 
 | Property | Phase | Apalache status | Cross-check vs Pass-3 | Certificate |
 |---|---|---|---|---|
-| **P1** No-Forgery | not started | — | — | — |
-| **P2** No-Double-Spend | **Phase 0 done** (abstract level; full §3 model in Phase 1–3) | **verified unbounded** (inductive invariant, Apalache 0.58.0) | confirmed (Pass-3 HIGH ↔ verified) at the abstract accumulator level | [`property/P02_NoDoubleSpend/certificate.txt`](./property/P02_NoDoubleSpend/certificate.txt) |
-| **P3** Balance Conservation | not started | — | — | — |
-| **P4** Zero-Knowledge | not started | — | — | — |
-| **P5** On-chain Privacy | not started | — | — | — |
-| **P6** Client-Side Validation | not started | — | — | — |
-| **P7** Issuance Authenticity v1 | not started | — | — | — |
-| **P8** Transport Confidentiality + Auth | not started | — | — | — |
-| **P9** Recovery Completeness | not started | — | — | — |
-| **P10** Capability Discipline | not started | — | — | — |
+| **P1** No-Forgery | Phase 3 done | **verified** — provenance unbounded; signature-level statement bounded + documented reduction | confirmed (HIGH) | [`property/P01_NoForgery/certificate.txt`](./property/P01_NoForgery/certificate.txt) |
+| **P2** No-Double-Spend | Phase 3 done (two layers) | **verified unbounded** — abstract (Phase 0) + full `Onchain` machine; chain continuity bounded (documented) | confirmed (HIGH) | [`property/P02_NoDoubleSpend/certificate.txt`](./property/P02_NoDoubleSpend/certificate.txt) |
+| **P3** Balance Conservation | Phase 3 done | **verified unbounded** (ghost supply/mint ledgers over the compliance predicate) | confirmed (HIGH, creator-bound v1 model) | [`property/P03_BalanceConservation/certificate.txt`](./property/P03_BalanceConservation/certificate.txt) |
+| **P4** Zero-Knowledge | Phase 3 done | **verified** — publication-gate flow invariant unbounded; indistinguishability itself = A2 (axiom, scoped) | confirmed (HIGH) at composition level | [`property/P04_ZeroKnowledge/certificate.txt`](./property/P04_ZeroKnowledge/certificate.txt) |
+| **P5** On-chain Privacy | Phase 3 done | **verified** — publisher-only-link unbounded; structural surface facts labelled; network half out of scope | confirmed; **strengthened post-`docs#40`** (on-chain `k_j` leak eliminated; publisher pubkey is the new, sole on-chain link) | [`property/P05_OnchainPrivacy/certificate.txt`](./property/P05_OnchainPrivacy/certificate.txt) |
+| **P6** Client-Side Validation | Phase 3 done | **verified unbounded** (§2.3.3 receive gate composed over the full on-chain machine) | confirmed (HIGH) | [`property/P06_ClientSideValidation/certificate.txt`](./property/P06_ClientSideValidation/certificate.txt) |
+| **P7** Issuance Authenticity v1 | Phase 3 done | **verified unbounded** | confirmed (HIGH) | [`property/P07_IssuanceAuthenticity/certificate.txt`](./property/P07_IssuanceAuthenticity/certificate.txt) |
+| **P8** Transport Confidentiality + Auth | Phase 3 done | **verified unbounded** (ACK nonce-freshness = the merged F17 fix) | confirmed (HIGH; F17 LOW resolved in spec and model) | [`property/P08_TransportConfAuth/certificate.txt`](./property/P08_TransportConfAuth/certificate.txt) |
+| **P9** Recovery Completeness | Phase 3 done | **verified** — safety (no false-accept) unbounded; liveness via enabledness surrogate (Apalache 0.58.0 has no fairness support) | confirmed (HIGH correctness / MEDIUM liveness — mirrored) | [`property/P09_RecoveryCompleteness/certificate.txt`](./property/P09_RecoveryCompleteness/certificate.txt) |
+| **P10** Capability Discipline | Phase 3 done | **verified unbounded** — 3 dynamic invariants; spend-escalation recorded as structural (an earlier vacuous encoding was caught in review and fixed) | confirmed (HIGH) | [`property/P10_CapabilityDiscipline/certificate.txt`](./property/P10_CapabilityDiscipline/certificate.txt) |
 
 Update protocol: every Phase-3 verification result (success or counter-example) updates this table in the same PR.
 

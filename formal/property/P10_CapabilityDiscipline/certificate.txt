@@ -1,0 +1,567 @@
+================================================================================
+zkCoins 100% Logical Verification Initiative
+CERTIFICATE -- P10 Capability Discipline (Phase 2, Access & Explorer)
+================================================================================
+
+Property      : P10 Capability Discipline (Sec. 5 capability-gated pull endpoint)
+Claim         : A presented capability releases at most the data its scope
+                authorizes; an OwnershipProof or GrantProof cannot be replayed
+                against a different node; revoked/expired grants release nothing.
+                No view capability widens spend authority (structural, see below).
+                (Pass-3 audit P10, HIGH.)
+Result        : P10 = NoReleaseWithoutCapability + ScopeRespected
+                + NoReplayAcrossHosts (machine-VERIFIED, unbounded, inductive),
+                with spend-escalation a STRUCTURAL by-construction property
+                (not dynamically exercised; see "Spend escalation" below).
+
+Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
+Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
+Date          : 2026-06-07
+Spec baseline : zk-coins/docs@b6972b8 (Sec. 5.1/5.2/5.3/5.4/5.5/5.8)
+Model         : property.tla (module `property`, EXTENDS module/Access.tla)
+Runner        : ./verify.sh
+
+What "unbounded" means here
+---------------------------
+The conjunction of checks [2] (base), [3] (step) and [4] (implication) is a
+standard inductive-invariant argument, so INV_P10 holds in EVERY reachable state
+of the Sec. 5 release machine, for an arbitrary number of Sign / IssueChallenge /
+ReleaseByOwnership / ReleaseByGrant / Revoke / Tick transitions. The capability
+world (hosts, subjects, pubkeys, records) is a finite parameter fixed by
+Access.AcConstInit; the inductive argument is per-request local and uniform in
+that world size -- confirmed by re-running [2]/[3]/[4] at a larger world (3
+subjects, 3 pubkeys, 4 records, MaxTime = 4; see notes.md). Data-domain
+finiteness per state is intrinsic to SMT-based model checking and is recorded as
+a modelling parameter, not a hidden bound on the number of transitions.
+
+INV_P10 / IndInv_P10
+--------------------
+INV_P10    == AcNoReleaseWithoutCapability /\ AcScopeRespected
+              /\ AcNoReplayAcrossHosts
+              (the three DYNAMICALLY machine-checked Sec. 5 release-discipline
+               invariants of module/Access.tla).
+IndInv_P10 == AcTypeOK /\ INV_P10    (AcTypeOK pins the per-state record domains
+              so the step's symbolic --init cannot inject ill-typed values).
+The invariant is inductive as-is: no strengthening beyond AcTypeOK was required
+(see notes.md for the inductiveness argument and the strengthening log).
+
+Spend escalation -- STRUCTURAL, not dynamically exercised
+---------------------------------------------------------
+The fourth Pass-3 attack class (escalating a view capability into a spend) is a
+BY-CONSTRUCTION property of the release machine and is deliberately NOT a
+conjunct of the machine-checked INV_P10. The grounds:
+  (1) The release actions' write set is { acConsumed, acReleased }. No action in
+      AcNext writes the signing oracle `acAuthorised` except the honest `Sign`
+      action; there is no spend-granting action in the Access machine, so a
+      release (a read) can never confer signing/spend authority.
+  (2) The VIEW/SPEND key separation is a Foundations/Assumptions-level axiom
+      (A9: hardened BIP-32 derivation; a view key cannot derive sk0).
+  (3) Bearer secrets (zkview/zkavk) carry no ownership/grant capability, so the
+      release predicate is FALSE for them (Sec. 5.1 para 2); CanDecrypt over
+      already-public ciphertext is independent of `acReleased`.
+An earlier revision shipped this as a machine invariant
+  \A e \in acReleased : \A pk \in Pubkeys : CanDecrypt({pk},pk) => e.rec \in Records
+which is a TAUTOLOGY (CanDecrypt({pk},pk) == pk \in {pk} == TRUE, and
+e.rec \in Records holds for every audit entry by AcTypeOK), asserting nothing
+about spend authority. It has been removed rather than shipped as a vacuous
+claim. This certificate's verified headline is therefore the three dynamic
+invariants above; spend escalation is recorded as structural.
+
+Commands (exactly as run by verify.sh)
+--------------------------------------
+  apalache-mc check --cinit=P10ConstInit --init=AcInit       --next=AcNext --inv=IndInv_P10 --length=6 property.tla   # [1] bounded sanity
+  apalache-mc check --cinit=P10ConstInit --init=AcInit       --next=AcNext --inv=IndInv_P10 --length=0 property.tla   # [2] base:  AcInit => IndInv_P10
+  apalache-mc check --cinit=P10ConstInit --init=IndInvInit_P10 --next=AcNext --inv=IndInv_P10 --length=1 property.tla   # [3] step:  IndInv_P10 /\ AcNext => IndInv_P10'
+  apalache-mc check --cinit=P10ConstInit --init=IndInvInit_P10 --next=AcNext --inv=INV_P10     --length=0 property.tla   # [4] impl:  IndInv_P10 => INV_P10
+
+Negative control (the chan_bind gate is load-bearing)
+-----------------------------------------------------
+The release actions let the requester PRESENT a chan_bind for some host `h`
+(possibly ForeignHost -- a proof captured by / bound to a different node, the
+Sec. 5.1 proof-forwarding / MITM case) and carry that presented binding through
+to the audit entry's `host` field. The only thing preventing a ForeignHost-bound
+proof from releasing is the admit predicate's ChanBindMatches(presented,
+ServingHost) plus the challenge-side equality ch.chanBind = presented.
+
+Deleting BOTH ChanBindMatches conjuncts (from OwnershipAdmits and GrantAdmits) in
+a throwaway copy of Access.tla (/tmp, not committed) and running
+  apalache-mc check --cinit=P10ConstInit --init=AcInit --next=AcNext --inv=INV_P10 --length=4 property.tla
+yields "The outcome is: Error" with AcNoReplayAcrossHosts (INV_P10's third
+conjunct) VIOLATED at State 3:
+
+  State2: acIssued = { [chanBind |-> 20, expiry |-> 1, nonce |-> 1, subject |-> 1] }
+          (IssueChallenge bound to host 20 = ForeignHost)
+  State3: acReleased grows with two entries, each host |-> 20 (ForeignHost)
+          => AcNoReplayAcrossHosts violated: e.host (20) != ServingHost (10)
+
+i.e. without the gate, a proof presenting a ForeignHost binding releases at a
+foreign host -- a genuine cross-host replay (a proof bound to host X accepted at
+host Y), exactly the Pass-3 P10 "replay against a different node" win. With the
+gate present, all four checks return NoError. (A prior certificate claimed
+deleting the chan_bind conjunct returned NoError because the release actions then
+hardcoded host |-> ServingHost; that made the negative control and the invariant
+vacuous. The release actions now carry the presented binding through, so the
+control is a real violation. Trace recorded in notes.md.)
+
+================================================================================
+FULL APALACHE TRANSCRIPT (verify.sh, 2026-06-07)
+================================================================================
+Apalache version: 0.58.0
+World: Access.AcConstInit (2 hosts, 2 subjects, 2 pubkeys, 3 records); the
+inductive argument is per-request local and uniform in the world size
+(notes.md records a larger-world confirmation).
+
+### [1] bounded sanity  AcInit/AcNext |= IndInv_P10 (length 6)
+# Usage statistics is OFF. We care about your privacy.
+# If you want to help our project, consider enabling statistics with config --enable-stats=true.
+
+Output directory: <scratch>/_apalache-out/property.tla/<run-id>
+# APALACHE version: 0.58.0 | build: 711dce6                       I@00:41:10.286
+Tuning: search.outputTraces=false                                 I@00:41:10.295
+PASS #0: SanyParser                                               I@00:41:10.381
+PASS #1: TypeCheckerSnowcat                                       I@00:41:10.563
+ > Running Snowcat .::.                                           I@00:41:10.563
+ > Your types are purrfect!                                       I@00:41:11.027
+ > All expressions are typed                                      I@00:41:11.028
+PASS #2: ConfigurationPass                                        I@00:41:11.028
+  > Set the initialization predicate to AcInit                    I@00:41:11.030
+  > Set the transition predicate to AcNext                        I@00:41:11.030
+  > Set the constant initialization predicate to P10ConstInit     I@00:41:11.031
+  > Set an invariant to IndInv_P10                                I@00:41:11.031
+PASS #3: DesugarerPass                                            I@00:41:11.034
+  > Desugaring...                                                 I@00:41:11.034
+PASS #4: InlinePass                                               I@00:41:11.124
+Leaving only relevant operators: AcInit, AcInitPrimed, AcNext, IndInv_P10, P10ConstInit, P10ConstInitPrimed I@00:41:11.124
+PASS #5: TemporalPass                                             I@00:41:11.154
+  > Rewriting temporal operators...                               I@00:41:11.154
+  > No temporal property specified, nothing to encode             I@00:41:11.154
+PASS #6: InlinePass                                               I@00:41:11.154
+Leaving only relevant operators: AcInit, AcInitPrimed, AcNext, IndInv_P10, P10ConstInit, P10ConstInitPrimed I@00:41:11.154
+PASS #7: PrimingPass                                              I@00:41:11.160
+  > Introducing P10ConstInitPrimed for P10ConstInit'              I@00:41:11.161
+  > Introducing AcInitPrimed for AcInit'                          I@00:41:11.164
+PASS #8: VCGen                                                    I@00:41:11.165
+  > Producing verification conditions from the invariant IndInv_P10 I@00:41:11.165
+  > VCGen produced 10 verification condition(s)                   I@00:41:11.167
+PASS #9: PreprocessingPass                                        I@00:41:11.168
+  > Before preprocessing: unique renaming                         I@00:41:11.168
+ > Applying standard transformations:                             I@00:41:11.171
+  > PrimePropagation                                              I@00:41:11.171
+  > Desugarer                                                     I@00:41:11.173
+  > UniqueRenamer                                                 I@00:41:11.174
+  > Normalizer                                                    I@00:41:11.177
+  > SetMembershipSimplifier                                       I@00:41:11.180
+  > Keramelizer                                                   I@00:41:11.183
+  > After preprocessing: UniqueRenamer                            I@00:41:11.187
+PASS #10: TransitionFinderPass                                    I@00:41:11.193
+  > Found 1 initializing transitions                              I@00:41:11.205
+  > Found 6 transitions                                           I@00:41:11.210
+  > Found constant initializer P10ConstInit                       I@00:41:11.210
+  > Applying unique renaming                                      I@00:41:11.211
+PASS #11: OptimizationPass                                        I@00:41:11.214
+ > Applying optimizations:                                        I@00:41:11.216
+  > ConstSimplifier                                               I@00:41:11.216
+  > ExprOptimizer                                                 I@00:41:11.221
+  > SetMembershipSimplifier                                       I@00:41:11.226
+  > ConstSimplifier                                               I@00:41:11.227
+PASS #12: AnalysisPass                                            I@00:41:11.232
+ > Marking skolemizable existentials and sets to be expanded...   I@00:41:11.233
+  > Skolemization                                                 I@00:41:11.233
+  > Expansion                                                     I@00:41:11.234
+  > Remove unused let-in defs                                     I@00:41:11.236
+ > Running analyzers...                                           I@00:41:11.238
+  > Introduced expression grades                                  I@00:41:11.240
+PASS #13: BoundedChecker                                          I@00:41:11.240
+State 0: Checking 10 state invariants                             I@00:41:11.733
+State 0: state invariant 0 holds.                                 I@00:41:11.734
+State 0: state invariant 1 holds.                                 I@00:41:11.736
+State 0: state invariant 2 holds.                                 I@00:41:11.736
+State 0: state invariant 3 holds.                                 I@00:41:11.737
+State 0: state invariant 4 holds.                                 I@00:41:11.737
+State 0: state invariant 5 holds.                                 I@00:41:11.738
+State 0: state invariant 6 holds.                                 I@00:41:11.739
+State 0: state invariant 7 holds.                                 I@00:41:11.739
+State 0: state invariant 8 holds.                                 I@00:41:11.739
+State 0: state invariant 9 holds.                                 I@00:41:11.739
+Step 0: picking a transition out of 1 transition(s)               I@00:41:11.740
+State 1: Checking 1 state invariants                              I@00:41:11.751
+State 1: state invariant 0 holds.                                 I@00:41:11.764
+State 1: Checking 1 state invariants                              I@00:41:11.769
+State 1: state invariant 1 holds.                                 I@00:41:11.777
+Step 1: Transition #2 is disabled                                 I@00:41:11.779
+Step 1: Transition #3 is disabled                                 I@00:41:11.780
+State 1: Checking 1 state invariants                              I@00:41:11.782
+State 1: state invariant 3 holds.                                 I@00:41:11.782
+State 1: Checking 1 state invariants                              I@00:41:11.784
+State 1: state invariant 5 holds.                                 I@00:41:11.785
+Step 1: picking a transition out of 4 transition(s)               I@00:41:11.785
+State 2: Checking 1 state invariants                              I@00:41:11.793
+State 2: state invariant 0 holds.                                 I@00:41:11.798
+State 2: Checking 1 state invariants                              I@00:41:11.803
+State 2: state invariant 1 holds.                                 I@00:41:11.809
+Step 2: Transition #2 is disabled                                 I@00:41:11.819
+Step 2: Transition #3 is disabled                                 I@00:41:11.833
+State 2: Checking 1 state invariants                              I@00:41:11.834
+State 2: state invariant 3 holds.                                 I@00:41:11.834
+State 2: Checking 1 state invariants                              I@00:41:11.835
+State 2: state invariant 5 holds.                                 I@00:41:11.836
+Step 2: picking a transition out of 4 transition(s)               I@00:41:11.836
+State 3: Checking 1 state invariants                              I@00:41:11.843
+State 3: state invariant 0 holds.                                 I@00:41:11.848
+State 3: Checking 1 state invariants                              I@00:41:11.850
+State 3: state invariant 1 holds.                                 I@00:41:11.855
+State 3: Checking 6 state invariants                              I@00:41:11.862
+State 3: state invariant 2 holds.                                 I@00:41:11.862
+State 3: state invariant 4 holds.                                 I@00:41:11.866
+State 3: state invariant 6 holds.                                 I@00:41:11.869
+State 3: state invariant 7 holds.                                 I@00:41:11.870
+State 3: state invariant 8 holds.                                 I@00:41:11.872
+State 3: state invariant 9 holds.                                 I@00:41:11.873
+State 3: Checking 6 state invariants                              I@00:41:11.883
+State 3: state invariant 2 holds.                                 I@00:41:11.883
+State 3: state invariant 4 holds.                                 I@00:41:11.888
+State 3: state invariant 6 holds.                                 I@00:41:11.891
+State 3: state invariant 7 holds.                                 I@00:41:11.893
+State 3: state invariant 8 holds.                                 I@00:41:11.894
+State 3: state invariant 9 holds.                                 I@00:41:11.896
+State 3: Checking 1 state invariants                              I@00:41:11.897
+State 3: state invariant 3 holds.                                 I@00:41:11.898
+State 3: Checking 1 state invariants                              I@00:41:11.899
+State 3: state invariant 5 holds.                                 I@00:41:11.900
+Step 3: picking a transition out of 6 transition(s)               I@00:41:11.900
+State 4: Checking 1 state invariants                              I@00:41:11.908
+State 4: state invariant 0 holds.                                 I@00:41:11.915
+State 4: Checking 1 state invariants                              I@00:41:11.917
+State 4: state invariant 1 holds.                                 I@00:41:11.923
+State 4: Checking 6 state invariants                              I@00:41:11.930
+State 4: state invariant 2 holds.                                 I@00:41:11.932
+State 4: state invariant 4 holds.                                 I@00:41:11.938
+State 4: state invariant 6 holds.                                 I@00:41:11.941
+State 4: state invariant 7 holds.                                 I@00:41:11.944
+State 4: state invariant 8 holds.                                 I@00:41:11.946
+State 4: state invariant 9 holds.                                 I@00:41:11.949
+State 4: Checking 6 state invariants                              I@00:41:11.964
+State 4: state invariant 2 holds.                                 I@00:41:11.965
+State 4: state invariant 4 holds.                                 I@00:41:11.971
+State 4: state invariant 6 holds.                                 I@00:41:11.974
+State 4: state invariant 7 holds.                                 I@00:41:11.977
+State 4: state invariant 8 holds.                                 I@00:41:11.979
+State 4: state invariant 9 holds.                                 I@00:41:11.982
+State 4: Checking 1 state invariants                              I@00:41:11.984
+State 4: state invariant 3 holds.                                 I@00:41:11.985
+State 4: Checking 1 state invariants                              I@00:41:11.986
+State 4: state invariant 5 holds.                                 I@00:41:11.987
+Step 4: picking a transition out of 6 transition(s)               I@00:41:11.988
+State 5: Checking 1 state invariants                              I@00:41:11.999
+State 5: state invariant 0 holds.                                 I@00:41:12.006
+State 5: Checking 1 state invariants                              I@00:41:12.008
+State 5: state invariant 1 holds.                                 I@00:41:12.017
+State 5: Checking 6 state invariants                              I@00:41:12.024
+State 5: state invariant 2 holds.                                 I@00:41:12.028
+State 5: state invariant 4 holds.                                 I@00:41:12.039
+State 5: state invariant 6 holds.                                 I@00:41:12.045
+State 5: state invariant 7 holds.                                 I@00:41:12.050
+State 5: state invariant 8 holds.                                 I@00:41:12.055
+State 5: state invariant 9 holds.                                 I@00:41:12.058
+State 5: Checking 6 state invariants                              I@00:41:12.068
+State 5: state invariant 2 holds.                                 I@00:41:12.074
+State 5: state invariant 4 holds.                                 I@00:41:12.084
+State 5: state invariant 6 holds.                                 I@00:41:12.089
+State 5: state invariant 7 holds.                                 I@00:41:12.095
+State 5: state invariant 8 holds.                                 I@00:41:12.101
+State 5: state invariant 9 holds.                                 I@00:41:12.105
+State 5: Checking 1 state invariants                              I@00:41:12.107
+State 5: state invariant 3 holds.                                 I@00:41:12.110
+State 5: Checking 1 state invariants                              I@00:41:12.115
+State 5: state invariant 5 holds.                                 I@00:41:12.116
+Step 5: picking a transition out of 6 transition(s)               I@00:41:12.117
+State 6: Checking 1 state invariants                              I@00:41:12.132
+State 6: state invariant 0 holds.                                 I@00:41:12.144
+State 6: Checking 1 state invariants                              I@00:41:12.147
+State 6: state invariant 1 holds.                                 I@00:41:12.171
+State 6: Checking 6 state invariants                              I@00:41:12.180
+State 6: state invariant 2 holds.                                 I@00:41:12.200
+State 6: state invariant 4 holds.                                 I@00:41:12.220
+State 6: state invariant 6 holds.                                 I@00:41:12.232
+State 6: state invariant 7 holds.                                 I@00:41:12.243
+State 6: state invariant 8 holds.                                 I@00:41:12.260
+State 6: state invariant 9 holds.                                 I@00:41:12.267
+State 6: Checking 6 state invariants                              I@00:41:12.279
+State 6: state invariant 2 holds.                                 I@00:41:12.296
+State 6: state invariant 4 holds.                                 I@00:41:12.314
+State 6: state invariant 6 holds.                                 I@00:41:12.326
+State 6: state invariant 7 holds.                                 I@00:41:12.341
+State 6: state invariant 8 holds.                                 I@00:41:12.353
+State 6: state invariant 9 holds.                                 I@00:41:12.365
+State 6: Checking 1 state invariants                              I@00:41:12.369
+State 6: state invariant 3 holds.                                 I@00:41:12.375
+State 6: Checking 1 state invariants                              I@00:41:12.378
+State 6: state invariant 5 holds.                                 I@00:41:12.380
+Step 6: picking a transition out of 6 transition(s)               I@00:41:12.380
+The outcome is: NoError                                           I@00:41:12.399
+Checker reports no error up to computation length 6               I@00:41:12.400
+It took me 0 days  0 hours  0 min  2 sec                          I@00:41:12.400
+Total time: 2.112 sec                                             I@00:41:12.400
+EXITCODE: OK
+>>> [1] bounded sanity  AcInit/AcNext |= IndInv_P10 (length 6): OK
+
+### [2] inductive BASE   AcInit => IndInv_P10 (length 0)
+# Usage statistics is OFF. We care about your privacy.
+# If you want to help our project, consider enabling statistics with config --enable-stats=true.
+
+Output directory: <scratch>/_apalache-out/property.tla/<run-id>
+# APALACHE version: 0.58.0 | build: 711dce6                       I@00:41:12.722
+Tuning: search.outputTraces=false                                 I@00:41:12.730
+PASS #0: SanyParser                                               I@00:41:12.814
+PASS #1: TypeCheckerSnowcat                                       I@00:41:12.989
+ > Running Snowcat .::.                                           I@00:41:12.989
+ > Your types are purrfect!                                       I@00:41:13.371
+ > All expressions are typed                                      I@00:41:13.371
+PASS #2: ConfigurationPass                                        I@00:41:13.371
+  > Set the initialization predicate to AcInit                    I@00:41:13.373
+  > Set the transition predicate to AcNext                        I@00:41:13.374
+  > Set the constant initialization predicate to P10ConstInit     I@00:41:13.374
+  > Set an invariant to IndInv_P10                                I@00:41:13.374
+PASS #3: DesugarerPass                                            I@00:41:13.376
+  > Desugaring...                                                 I@00:41:13.376
+PASS #4: InlinePass                                               I@00:41:13.461
+Leaving only relevant operators: AcInit, AcInitPrimed, AcNext, IndInv_P10, P10ConstInit, P10ConstInitPrimed I@00:41:13.461
+PASS #5: TemporalPass                                             I@00:41:13.487
+  > Rewriting temporal operators...                               I@00:41:13.487
+  > No temporal property specified, nothing to encode             I@00:41:13.487
+PASS #6: InlinePass                                               I@00:41:13.487
+Leaving only relevant operators: AcInit, AcInitPrimed, AcNext, IndInv_P10, P10ConstInit, P10ConstInitPrimed I@00:41:13.487
+PASS #7: PrimingPass                                              I@00:41:13.493
+  > Introducing P10ConstInitPrimed for P10ConstInit'              I@00:41:13.494
+  > Introducing AcInitPrimed for AcInit'                          I@00:41:13.497
+PASS #8: VCGen                                                    I@00:41:13.497
+  > Producing verification conditions from the invariant IndInv_P10 I@00:41:13.497
+  > VCGen produced 10 verification condition(s)                   I@00:41:13.499
+PASS #9: PreprocessingPass                                        I@00:41:13.500
+  > Before preprocessing: unique renaming                         I@00:41:13.501
+ > Applying standard transformations:                             I@00:41:13.504
+  > PrimePropagation                                              I@00:41:13.504
+  > Desugarer                                                     I@00:41:13.505
+  > UniqueRenamer                                                 I@00:41:13.507
+  > Normalizer                                                    I@00:41:13.509
+  > SetMembershipSimplifier                                       I@00:41:13.512
+  > Keramelizer                                                   I@00:41:13.515
+  > After preprocessing: UniqueRenamer                            I@00:41:13.519
+PASS #10: TransitionFinderPass                                    I@00:41:13.524
+  > Found 1 initializing transitions                              I@00:41:13.536
+  > Found 6 transitions                                           I@00:41:13.540
+  > Found constant initializer P10ConstInit                       I@00:41:13.540
+  > Applying unique renaming                                      I@00:41:13.542
+PASS #11: OptimizationPass                                        I@00:41:13.545
+ > Applying optimizations:                                        I@00:41:13.548
+  > ConstSimplifier                                               I@00:41:13.548
+  > ExprOptimizer                                                 I@00:41:13.553
+  > SetMembershipSimplifier                                       I@00:41:13.557
+  > ConstSimplifier                                               I@00:41:13.558
+PASS #12: AnalysisPass                                            I@00:41:13.562
+ > Marking skolemizable existentials and sets to be expanded...   I@00:41:13.563
+  > Skolemization                                                 I@00:41:13.564
+  > Expansion                                                     I@00:41:13.564
+  > Remove unused let-in defs                                     I@00:41:13.566
+ > Running analyzers...                                           I@00:41:13.568
+  > Introduced expression grades                                  I@00:41:13.571
+PASS #13: BoundedChecker                                          I@00:41:13.571
+State 0: Checking 10 state invariants                             I@00:41:14.059
+State 0: state invariant 0 holds.                                 I@00:41:14.060
+State 0: state invariant 1 holds.                                 I@00:41:14.061
+State 0: state invariant 2 holds.                                 I@00:41:14.061
+State 0: state invariant 3 holds.                                 I@00:41:14.062
+State 0: state invariant 4 holds.                                 I@00:41:14.062
+State 0: state invariant 5 holds.                                 I@00:41:14.063
+State 0: state invariant 6 holds.                                 I@00:41:14.063
+State 0: state invariant 7 holds.                                 I@00:41:14.064
+State 0: state invariant 8 holds.                                 I@00:41:14.064
+State 0: state invariant 9 holds.                                 I@00:41:14.064
+Step 0: picking a transition out of 1 transition(s)               I@00:41:14.064
+The outcome is: NoError                                           I@00:41:14.067
+Checker reports no error up to computation length 0               I@00:41:14.067
+It took me 0 days  0 hours  0 min  1 sec                          I@00:41:14.067
+Total time: 1.343 sec                                             I@00:41:14.067
+EXITCODE: OK
+>>> [2] inductive BASE   AcInit => IndInv_P10 (length 0): OK
+
+### [3] inductive STEP   IndInv_P10 /\ AcNext => IndInv_P10' (length 1)
+# Usage statistics is OFF. We care about your privacy.
+# If you want to help our project, consider enabling statistics with config --enable-stats=true.
+
+Output directory: <scratch>/_apalache-out/property.tla/<run-id>
+# APALACHE version: 0.58.0 | build: 711dce6                       I@00:41:14.392
+Tuning: search.outputTraces=false                                 I@00:41:14.400
+PASS #0: SanyParser                                               I@00:41:14.485
+PASS #1: TypeCheckerSnowcat                                       I@00:41:14.653
+ > Running Snowcat .::.                                           I@00:41:14.653
+ > Your types are purrfect!                                       I@00:41:15.062
+ > All expressions are typed                                      I@00:41:15.062
+PASS #2: ConfigurationPass                                        I@00:41:15.063
+  > Set the initialization predicate to IndInvInit_P10            I@00:41:15.065
+  > Set the transition predicate to AcNext                        I@00:41:15.065
+  > Set the constant initialization predicate to P10ConstInit     I@00:41:15.065
+  > Set an invariant to IndInv_P10                                I@00:41:15.065
+PASS #3: DesugarerPass                                            I@00:41:15.069
+  > Desugaring...                                                 I@00:41:15.069
+PASS #4: InlinePass                                               I@00:41:15.149
+Leaving only relevant operators: AcNext, IndInvInit_P10, IndInvInit_P10Primed, IndInv_P10, P10ConstInit, P10ConstInitPrimed I@00:41:15.149
+PASS #5: TemporalPass                                             I@00:41:15.175
+  > Rewriting temporal operators...                               I@00:41:15.176
+  > No temporal property specified, nothing to encode             I@00:41:15.176
+PASS #6: InlinePass                                               I@00:41:15.177
+Leaving only relevant operators: AcNext, IndInvInit_P10, IndInvInit_P10Primed, IndInv_P10, P10ConstInit, P10ConstInitPrimed I@00:41:15.177
+PASS #7: PrimingPass                                              I@00:41:15.183
+  > Introducing P10ConstInitPrimed for P10ConstInit'              I@00:41:15.184
+  > Introducing IndInvInit_P10Primed for IndInvInit_P10'          I@00:41:15.187
+PASS #8: VCGen                                                    I@00:41:15.187
+  > Producing verification conditions from the invariant IndInv_P10 I@00:41:15.187
+  > VCGen produced 10 verification condition(s)                   I@00:41:15.189
+PASS #9: PreprocessingPass                                        I@00:41:15.190
+  > Before preprocessing: unique renaming                         I@00:41:15.190
+ > Applying standard transformations:                             I@00:41:15.193
+  > PrimePropagation                                              I@00:41:15.193
+  > Desugarer                                                     I@00:41:15.195
+  > UniqueRenamer                                                 I@00:41:15.197
+  > Normalizer                                                    I@00:41:15.200
+  > SetMembershipSimplifier                                       I@00:41:15.203
+  > Keramelizer                                                   I@00:41:15.207
+  > After preprocessing: UniqueRenamer                            I@00:41:15.212
+PASS #10: TransitionFinderPass                                    I@00:41:15.216
+  > Found 1 initializing transitions                              I@00:41:15.227
+  > Found 6 transitions                                           I@00:41:15.231
+  > Found constant initializer P10ConstInit                       I@00:41:15.232
+  > Applying unique renaming                                      I@00:41:15.233
+PASS #11: OptimizationPass                                        I@00:41:15.237
+ > Applying optimizations:                                        I@00:41:15.239
+  > ConstSimplifier                                               I@00:41:15.239
+  > ExprOptimizer                                                 I@00:41:15.243
+  > SetMembershipSimplifier                                       I@00:41:15.248
+  > ConstSimplifier                                               I@00:41:15.249
+PASS #12: AnalysisPass                                            I@00:41:15.253
+ > Marking skolemizable existentials and sets to be expanded...   I@00:41:15.254
+  > Skolemization                                                 I@00:41:15.254
+  > Expansion                                                     I@00:41:15.255
+  > Remove unused let-in defs                                     I@00:41:15.257
+ > Running analyzers...                                           I@00:41:15.259
+  > Introduced expression grades                                  I@00:41:15.261
+PASS #13: BoundedChecker                                          I@00:41:15.261
+State 0: Checking 10 state invariants                             I@00:41:15.795
+State 0: state invariant 0 holds.                                 I@00:41:15.808
+State 0: state invariant 1 holds.                                 I@00:41:15.845
+State 0: state invariant 2 holds.                                 I@00:41:15.846
+State 0: state invariant 3 holds.                                 I@00:41:15.847
+State 0: state invariant 4 holds.                                 I@00:41:15.855
+State 0: state invariant 5 holds.                                 I@00:41:15.856
+State 0: state invariant 6 holds.                                 I@00:41:15.867
+State 0: state invariant 7 holds.                                 I@00:41:15.872
+State 0: state invariant 8 holds.                                 I@00:41:15.876
+State 0: state invariant 9 holds.                                 I@00:41:15.880
+Step 0: picking a transition out of 1 transition(s)               I@00:41:15.880
+State 1: Checking 1 state invariants                              I@00:41:15.889
+State 1: state invariant 0 holds.                                 I@00:41:15.896
+State 1: Checking 1 state invariants                              I@00:41:15.903
+State 1: state invariant 1 holds.                                 I@00:41:15.928
+State 1: Checking 6 state invariants                              I@00:41:15.948
+State 1: state invariant 2 holds.                                 I@00:41:15.949
+State 1: state invariant 4 holds.                                 I@00:41:15.958
+State 1: state invariant 6 holds.                                 I@00:41:15.963
+State 1: state invariant 7 holds.                                 I@00:41:15.968
+State 1: state invariant 8 holds.                                 I@00:41:15.971
+State 1: state invariant 9 holds.                                 I@00:41:15.975
+State 1: Checking 6 state invariants                              I@00:41:16.002
+State 1: state invariant 2 holds.                                 I@00:41:16.003
+State 1: state invariant 4 holds.                                 I@00:41:16.012
+State 1: state invariant 6 holds.                                 I@00:41:16.016
+State 1: state invariant 7 holds.                                 I@00:41:16.020
+State 1: state invariant 8 holds.                                 I@00:41:16.023
+State 1: state invariant 9 holds.                                 I@00:41:16.027
+State 1: Checking 1 state invariants                              I@00:41:16.028
+State 1: state invariant 3 holds.                                 I@00:41:16.029
+State 1: Checking 1 state invariants                              I@00:41:16.031
+State 1: state invariant 5 holds.                                 I@00:41:16.031
+Step 1: picking a transition out of 6 transition(s)               I@00:41:16.031
+The outcome is: NoError                                           I@00:41:16.077
+Checker reports no error up to computation length 1               I@00:41:16.077
+It took me 0 days  0 hours  0 min  1 sec                          I@00:41:16.077
+Total time: 1.684 sec                                             I@00:41:16.077
+EXITCODE: OK
+>>> [3] inductive STEP   IndInv_P10 /\ AcNext => IndInv_P10' (length 1): OK
+
+### [4] IMPLICATION      IndInv_P10 => INV_P10 (length 0)
+# Usage statistics is OFF. We care about your privacy.
+# If you want to help our project, consider enabling statistics with config --enable-stats=true.
+
+Output directory: <scratch>/_apalache-out/property.tla/<run-id>
+# APALACHE version: 0.58.0 | build: 711dce6                       I@00:41:16.693
+Tuning: search.outputTraces=false                                 I@00:41:16.702
+PASS #0: SanyParser                                               I@00:41:16.786
+PASS #1: TypeCheckerSnowcat                                       I@00:41:16.958
+ > Running Snowcat .::.                                           I@00:41:16.958
+ > Your types are purrfect!                                       I@00:41:17.419
+ > All expressions are typed                                      I@00:41:17.419
+PASS #2: ConfigurationPass                                        I@00:41:17.420
+  > Set the initialization predicate to IndInvInit_P10            I@00:41:17.422
+  > Set the transition predicate to AcNext                        I@00:41:17.422
+  > Set the constant initialization predicate to P10ConstInit     I@00:41:17.422
+  > Set an invariant to INV_P10                                   I@00:41:17.422
+PASS #3: DesugarerPass                                            I@00:41:17.425
+  > Desugaring...                                                 I@00:41:17.426
+PASS #4: InlinePass                                               I@00:41:17.516
+Leaving only relevant operators: AcNext, INV_P10, IndInvInit_P10, IndInvInit_P10Primed, P10ConstInit, P10ConstInitPrimed I@00:41:17.517
+PASS #5: TemporalPass                                             I@00:41:17.547
+  > Rewriting temporal operators...                               I@00:41:17.547
+  > No temporal property specified, nothing to encode             I@00:41:17.547
+PASS #6: InlinePass                                               I@00:41:17.547
+Leaving only relevant operators: AcNext, INV_P10, IndInvInit_P10, IndInvInit_P10Primed, P10ConstInit, P10ConstInitPrimed I@00:41:17.547
+PASS #7: PrimingPass                                              I@00:41:17.553
+  > Introducing P10ConstInitPrimed for P10ConstInit'              I@00:41:17.555
+  > Introducing IndInvInit_P10Primed for IndInvInit_P10'          I@00:41:17.557
+PASS #8: VCGen                                                    I@00:41:17.558
+  > Producing verification conditions from the invariant INV_P10  I@00:41:17.558
+  > VCGen produced 4 verification condition(s)                    I@00:41:17.561
+PASS #9: PreprocessingPass                                        I@00:41:17.563
+  > Before preprocessing: unique renaming                         I@00:41:17.563
+ > Applying standard transformations:                             I@00:41:17.567
+  > PrimePropagation                                              I@00:41:17.567
+  > Desugarer                                                     I@00:41:17.569
+  > UniqueRenamer                                                 I@00:41:17.571
+  > Normalizer                                                    I@00:41:17.573
+  > SetMembershipSimplifier                                       I@00:41:17.576
+  > Keramelizer                                                   I@00:41:17.579
+  > After preprocessing: UniqueRenamer                            I@00:41:17.585
+PASS #10: TransitionFinderPass                                    I@00:41:17.590
+  > Found 1 initializing transitions                              I@00:41:17.605
+  > Found 6 transitions                                           I@00:41:17.611
+  > Found constant initializer P10ConstInit                       I@00:41:17.611
+  > Applying unique renaming                                      I@00:41:17.613
+PASS #11: OptimizationPass                                        I@00:41:17.616
+ > Applying optimizations:                                        I@00:41:17.618
+  > ConstSimplifier                                               I@00:41:17.619
+  > ExprOptimizer                                                 I@00:41:17.623
+  > SetMembershipSimplifier                                       I@00:41:17.628
+  > ConstSimplifier                                               I@00:41:17.631
+PASS #12: AnalysisPass                                            I@00:41:17.635
+ > Marking skolemizable existentials and sets to be expanded...   I@00:41:17.636
+  > Skolemization                                                 I@00:41:17.637
+  > Expansion                                                     I@00:41:17.637
+  > Remove unused let-in defs                                     I@00:41:17.639
+ > Running analyzers...                                           I@00:41:17.643
+  > Introduced expression grades                                  I@00:41:17.645
+PASS #13: BoundedChecker                                          I@00:41:17.645
+State 0: Checking 4 state invariants                              I@00:41:18.287
+State 0: state invariant 0 holds.                                 I@00:41:18.300
+State 0: state invariant 1 holds.                                 I@00:41:18.306
+State 0: state invariant 2 holds.                                 I@00:41:18.311
+State 0: state invariant 3 holds.                                 I@00:41:18.316
+Step 0: picking a transition out of 1 transition(s)               I@00:41:18.316
+The outcome is: NoError                                           I@00:41:18.318
+Checker reports no error up to computation length 0               I@00:41:18.318
+It took me 0 days  0 hours  0 min  1 sec                          I@00:41:18.319
+Total time: 1.624 sec                                             I@00:41:18.319
+EXITCODE: OK
+>>> [4] IMPLICATION      IndInv_P10 => INV_P10 (length 0): OK
+
+==================================================================
+RESULT: 4 check(s) passed, 0 unexpected.
+P10 CapabilityDiscipline: VERIFIED (unbounded, inductive).

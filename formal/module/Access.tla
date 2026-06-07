@@ -238,36 +238,50 @@ IssueChallenge ==
 \* Step 3+4: an OWNERSHIP proof is presented and, iff admissible, the node
 \* releases the subject's FULL Private view (every record for that subject),
 \* consuming the nonce (Sec. 5.1(a)). An inadmissible proof releases nothing.
+\* The requester PRESENTS a chan_bind for some host `h` it claims to have
+\* dialed -- ADVERSARIALLY, `h` may be ForeignHost (a proof captured by, or
+\* bound to, a different node: the Sec. 5.1 proof-forwarding / MITM case). The
+\* presented binding is carried THROUGH to the audit entry's `host` field, so a
+\* ForeignHost-bound proof would release at a foreign host UNLESS the admit
+\* predicate's ChanBindMatches(presented, ServingHost) (and the challenge-side
+\* equality ch.chanBind = op.chanBind) rejects it. Those two checks are now the
+\* only thing preventing a cross-host release -- the chan_bind gate is
+\* load-bearing (see property/P10/notes.md negative control).
 \* @type: () => Bool;
 ReleaseByOwnership ==
-  /\ \E ch \in acIssued, pk \in Pubkeys :
+  /\ \E ch \in acIssued, pk \in Pubkeys, h \in { ServingHost, ForeignHost } :
        LET op == [ subject |-> ch.subject, pk0 |-> pk,
-                   chanBind |-> ServingHost, nonce |-> ch.nonce ] IN
+                   chanBind |-> h, nonce |-> ch.nonce ] IN
          /\ OwnershipAdmits(op, ch)
          /\ acConsumed' = acConsumed \union { ch.nonce }
          /\ acReleased' = acReleased \union
-              { [ rec |-> r, subject |-> ch.subject, host |-> ServingHost ] :
+              { [ rec |-> r, subject |-> ch.subject, host |-> op.chanBind ] :
                   r \in { rr \in Records :
                             InScope(rr, FullScope) /\ rr.subject = ch.subject } }
   /\ UNCHANGED << acAuthorised, acIssued, acRevoked, acNow >>
 
 \* Step 3+4: a GRANT proof is presented and, iff admissible, the node releases
 \* ONLY the records inside the grant's scope (Sec. 5.1(b) check 4), consuming
-\* the nonce. The grant's subject fixes whose records may be acReleased.
+\* the nonce. The grant's subject fixes whose records may be acReleased. As in
+\* ReleaseByOwnership the requester PRESENTS a chan_bind for some host `h`
+\* (possibly ForeignHost -- the proof-forwarding case), and that presented
+\* binding is carried THROUGH to the audit entry's `host` field; only the admit
+\* predicate's ChanBindMatches(presented, ServingHost) plus ch.chanBind =
+\* gp.chanBind prevent a ForeignHost-bound proof from releasing here.
 \* @type: () => Bool;
 ReleaseByGrant ==
-  /\ \E ch \in acIssued, g \in
+  /\ \E ch \in acIssued, h \in { ServingHost, ForeignHost }, g \in
         { gg \in [ version: {1}, subject: Subjects, grantee: Pubkeys,
                    scope: [ assets: SUBSET AllAssets, allAssets: BOOLEAN,
                             notBefore: 0..MaxTime, notAfter: 0..MaxTime,
                             expiry: 0..MaxTime ],
                    nonce: 1..MaxTime, sigOk: BOOLEAN ] : TRUE } :
        LET gp == [ grant |-> g, granteePk |-> g.grantee,
-                   chanBind |-> ServingHost, nonce |-> ch.nonce ] IN
+                   chanBind |-> h, nonce |-> ch.nonce ] IN
          /\ GrantAdmits(gp, ch)
          /\ acConsumed' = acConsumed \union { ch.nonce }
          /\ acReleased' = acReleased \union
-              { [ rec |-> r, subject |-> ch.subject, host |-> ServingHost ] :
+              { [ rec |-> r, subject |-> ch.subject, host |-> gp.chanBind ] :
                   r \in { rr \in Records :
                             rr.subject = g.subject /\ InScope(rr, g.scope) } }
   /\ UNCHANGED << acAuthorised, acIssued, acRevoked, acNow >>
@@ -335,29 +349,53 @@ AcNoReleaseWithoutCapability ==
 AcScopeRespected ==
   \A e \in acReleased : e.rec.subject = e.subject
 
-\* NO REPLAY ACROSS HOSTS (Sec. 5.1, A14). Every release this node performed
-\* is bound to the host it serves; a proof whose chan_bind is ForeignHost can
-\* never produce a release here, because both admit-predicates require
-\* ChanBindMatches(., ServingHost). So a proof bound to host X is rejected at
-\* host Y.
+\* NO REPLAY ACROSS HOSTS (Sec. 5.1, A14). Every release this node performed is
+\* bound to the host it serves. The release actions carry the requester's
+\* PRESENTED chan_bind through to `e.host`, so a proof presenting a ForeignHost
+\* binding would, absent the gate, produce a release with e.host = ForeignHost
+\* -- a cross-host replay. This invariant asserts that never happens: the only
+\* way `acReleased` grows is via an admit predicate that requires both
+\* ChanBindMatches(presented, ServingHost) and ch.chanBind = presented, so the
+\* presented binding (= e.host) must equal ServingHost. A proof bound to host X
+\* is therefore rejected at host Y. Removing either chan_bind conjunct makes a
+\* ForeignHost-bound proof releasable and this invariant FALSE (see the negative
+\* control in property/P10_CapabilityDiscipline/notes.md).
 \* @type: () => Bool;
 AcNoReplayAcrossHosts ==
   \A e \in acReleased : e.host = ServingHost
 
-\* NO SPEND ESCALATION (Sec. 5.2/5.3/5.4/5.8). View capabilities are read-only;
-\* nothing in the release machine ever adds a SPEND-branch authorisation. The
-\* signing oracle only ever holds (pk, msgTag) pairs over challenge/grant
-\* message tags, never a spend message; and releasing a record (a read) does
-\* not grow `acAuthorised`. Modelled as: the release action leaves the signing
-\* oracle UNCHANGED -- a read never confers a signing/spend capability. (The
-\* bearer-cap orthogonality of Sec. 5.1 para 2 is the dual: CanDecrypt over
-\* public ciphertext is independent of `acReleased`, so a bearer secret never
-\* makes the node release more.)
-\* @type: () => Bool;
-AcNoSpendEscalation ==
-  \A e \in acReleased :
-    \A pk \in Pubkeys :
-      CanDecrypt({ pk }, pk) => (e.rec \in Records)
+(***************************************************************************)
+(* NO SPEND ESCALATION -- STRUCTURAL (Sec. 5.2/5.3/5.4/5.8, A9).            *)
+(*                                                                         *)
+(* A view capability (ownership view, view grant, or the bearer secrets    *)
+(* zkview/zkavk) is read-only and NEVER confers spend authority. In this   *)
+(* state model that is a BY-CONSTRUCTION fact about the machine's write set,*)
+(* not a dynamically exercised invariant, so it is deliberately NOT a       *)
+(* conjunct of INV_P10 (see property/P10_CapabilityDiscipline). The honest  *)
+(* grounds are:                                                            *)
+(*   (1) WRITE-SET. The two release actions (ReleaseByOwnership,            *)
+(*       ReleaseByGrant) write ONLY { acConsumed, acReleased }. No action   *)
+(*       in AcNext writes the signing oracle `acAuthorised` except `Sign`,  *)
+(*       which models an HONEST secret-holder signing -- never a release.   *)
+(*       So a release (a read) can never grow the signing/spend oracle;     *)
+(*       there is no spend-granting action in the Access machine at all.    *)
+(*   (2) KEY SEPARATION is a Foundations/Assumptions-level axiom (A9: the   *)
+(*       BIP-32 hardened derivation makes a view key unable to derive the   *)
+(*       spend key sk0); it is assumed, not re-derived here.               *)
+(*   (3) BEARER ORTHOGONALITY (Sec. 5.1 para 2). CanDecrypt over already-   *)
+(*       public ciphertext is a client-side predicate independent of        *)
+(*       `acReleased`; presenting a bearer secret carries no ownership/grant *)
+(*       capability, so the release predicate is FALSE for it and the node   *)
+(*       releases nothing extra.                                           *)
+(*                                                                         *)
+(* A previous formulation stated this as an invariant                      *)
+(*   \A e \in acReleased : \A pk \in Pubkeys :                              *)
+(*     CanDecrypt({pk}, pk) => (e.rec \in Records)                         *)
+(* but CanDecrypt({pk}, pk) == pk \in {pk} == TRUE and e.rec \in Records   *)
+(* holds for every audit entry by AcTypeOK, so the implication was a        *)
+(* tautology that asserted nothing about spend authority. It is removed     *)
+(* rather than shipped as a vacuous machine-checked claim.                  *)
+(***************************************************************************)
 
 (***************************************************************************)
 (* Constant initialiser (Apalache --cinit) for the smoke instance. A small  *)
