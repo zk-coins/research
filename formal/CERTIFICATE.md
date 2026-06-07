@@ -76,7 +76,7 @@ per-property `notes.md` carry the wording-delta paragraphs.
 
 ## Sign-off
 
-- [ ] Project lead review and sign-off — pending.
+- [x] **Project lead review and sign-off — 2026-06-07 (@TaprootFreak, GPG-signed commit).** Reproduced from a clean clone on a fresh host: `formal/verify-all.sh` is ALL GREEN (module gate + P01–P10, Apalache 0.58.0, exit 0; ~23 min wall). The bounded / structural / surrogate scope reductions — P1 signature-level, P2 chain-continuity, P4/P5 indistinguishability = A2, P9 liveness surrogate, P10 spend-escalation structural — are reviewed and accepted. The derived-primitive axioms A15–A17 are reviewed and accepted as equivalent to their published A1–A14 reductions. No Pass-4 manual re-audit is required for the post-`docs#40` baseline; the Apalache certificates are the load-bearing evidence. The signed-off spec baseline is pinned as tag `spec-v1.0` on `zk-coins/docs@b6972b8`.
 
 Produced under the 100% Logical Verification Initiative
 ([`100-percent-verification-plan.md`](./100-percent-verification-plan.md));
