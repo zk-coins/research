@@ -18,12 +18,28 @@ research/
 │   ├── eliel-blog.md              # "My Thoughts on the Shielded CSV Protocol" (Apr 2025)
 │   ├── bitcoin-optech.md          # Bitcoin Optech: Client-Side Validation
 │   └── da-paper.md                # ePrint 2025/569: Data Availability in CSV
-└── upstream/                      # Git submodules of original repositories
-    ├── ShieldedCSV/               # Paper reference code (Rust, MIT)
-    ├── ZeroSync-ZKCoins/          # Functional prototype (our primary upstream)
-    ├── rust-bitcoincore-rpc/      # Bitcoin Core RPC fork for ZKCoins
-    └── BitVM-zkCoins/             # Historical Plonky2 experiments
+├── upstream/                      # Git submodules of original repositories
+│   ├── ShieldedCSV/               # Paper reference code (Rust, MIT)
+│   ├── ZeroSync-ZKCoins/          # Functional prototype (our primary upstream)
+│   ├── rust-bitcoincore-rpc/      # Bitcoin Core RPC fork for ZKCoins
+│   └── BitVM-zkCoins/             # Historical Plonky2 experiments
+├── zkcoins-design/                # Design drafts archived from zk-coins/node (see its README)
+├── benchmarks/                    # Plonky3 spike benchmark results archived from zk-coins/node
+├── spikes/                        # Throwaway research crates
+│   └── plonky3-recursion-spike/   # Plonky3 recursion feasibility spike (from node staging, PRs #212/#214)
+├── community-content/             # Community/research pages archived from zk-coins/docs
+└── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
 ```
+
+## Imported Working Content (2026-06-07)
+
+This repository is the **catch-all for everything research-, design-, and ops-flavoured**
+across the zkCoins project. As part of a repo-hygiene pass, design drafts, the Plonky3
+recursion spike, benchmark write-ups, and community/ops documentation were moved here out
+of `zk-coins/node` and `zk-coins/docs` so those repos can stay focused (node = shippable
+software only; docs = the target-design specification only). Each imported directory has a
+`README.md` documenting its exact provenance and where any relocated cross-references now
+live. Nothing was rewritten — the files are archived verbatim.
 
 ## Protocol Status
 
@@ -101,7 +117,7 @@ git submodule update --init --recursive
 | Repo | Purpose |
 |---|---|
 | [zk-coins/app](https://github.com/zk-coins/app) | Web application (zkcoins.app) |
-| [zk-coins/server](https://github.com/zk-coins/server) | Rust backend (api.zkcoins.app) |
+| [zk-coins/node](https://github.com/zk-coins/node) | Rust backend / node (api.zkcoins.app) |
 | [zk-coins/docs](https://github.com/zk-coins/docs) | Documentation (docs.zkcoins.app) |
 
 ## License
