@@ -131,7 +131,13 @@ formal/
 
 ## Status
 
-Initialised 2026-06-06. Phase 0 complete (P02 verified unbounded). Phase 1 complete: all eight `module/` files type-check and the five state-machine modules pass an Init/Next reachability smoke check (run `module/verify-modules.sh`). See [`100-percent-verification-plan.md`](./100-percent-verification-plan.md) §Progress for live status per property.
+Initialised 2026-06-06; Phases 0–5 complete 2026-06-07. **All ten properties
+P1–P10 carry passing Apalache certificates** (see
+[`property/STATUS.md`](./property/STATUS.md)); the Pass-4 reconciliation
+against the Pass-3 manual audit and the sign-off summary live in
+[`CERTIFICATE.md`](./CERTIFICATE.md). Reproduce everything with one command:
+[`verify-all.sh`](./verify-all.sh). Live per-property detail:
+[`100-percent-verification-plan.md`](./100-percent-verification-plan.md) §Progress.
 
 ## Reproducibility
 
