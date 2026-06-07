@@ -326,7 +326,7 @@ Temporal_Pn == [](...)
    - MEDIUM + verified → "Pass-3 was over-cautious about Pn"; record in audit doc.
    - HIGH + inductive-invariant-failed → "inconclusive — escalate to Phase 6".
 
-3. **Update the Pass-3 audit doc** with a new section "§11 · Mechanical Verification (Pass-4)" listing the certificate paths and reconciliation table. Land via PR on `zk-coins/research/audit/spec-2026-06-06-03` (#6) — extending Pass-3 with the Pass-4 cross-check.
+3. **Record the Pass-4 reconciliation** (certificate paths + per-property Pass-3-label-vs-Apalache-verdict table) in `formal/CERTIFICATE.md`. The Pass-3 audit document is a read-only snapshot (§3.2) and is **not** amended; the Pass-4 cross-check lives in `formal/` alongside the certificates it references, so the snapshot stays immutable. (Resolved this way 2026-06-07; the earlier "amend the Pass-3 doc on its branch" plan contradicted the snapshot rule.)
 
 **Done when:** Every property's row has a recorded resolution.
 
@@ -434,7 +434,7 @@ Quoted from [`README.md`](./README.md) for at-hand reference; do not duplicate, 
 When you believe the work is complete:
 
 1. All 10 certificates exist and pass.
-2. Pass-3 audit doc updated with Pass-4 cross-check.
+2. Pass-4 cross-check recorded in `formal/CERTIFICATE.md` (Pass-3 snapshot left read-only).
 3. `formal/verify-all.sh` runs every certificate from a clean clone.
 4. PR flipped from Draft to Ready-for-Review.
 

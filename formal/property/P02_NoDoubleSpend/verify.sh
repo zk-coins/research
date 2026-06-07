@@ -55,7 +55,7 @@ echo
 
 # ===========================================================================
 # LAYER A -- Phase-0 abstract accumulator model (abstract.tla, self-contained).
-# Universe Nullifier = 1..6 (AbstractConstInit); argument uniform in size.
+# Universe Nullifier = 1..6 (ConstInit); argument uniform in size.
 # ===========================================================================
 echo "=================================================================="
 echo "LAYER A -- abstract accumulator model (Phase 0, unbounded)"

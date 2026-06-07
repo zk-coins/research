@@ -155,13 +155,13 @@ For each property, compare the Apalache verdict against the Pass-3 manual confid
 
 Any divergence is logged in `formal/property/Pn_<Name>/notes.md` with the resolution path.
 
-**Deliverable:** updated audit ([`audit/2026-06-06.04.md`](../audit/) or amend Pass-3) carrying mechanical certificate references.
+**Deliverable:** the Pass-4 reconciliation table in [`CERTIFICATE.md`](./CERTIFICATE.md), carrying the mechanical certificate references. The Pass-3 audit document itself is a **read-only snapshot** and is deliberately not amended; the Pass-4 cross-check lives in `formal/` alongside the certificates it references.
 
 ### Phase 5 — Documentation + sign-off (target: 1–2 days)
 
 - All `certificate.txt` files committed.
 - `formal/property/STATUS.md` table marked all green.
-- Audit doc updated with hyperlinks to certificates.
+- Certificate hyperlinks published in [`CERTIFICATE.md`](./CERTIFICATE.md) and [`property/STATUS.md`](./property/STATUS.md) (the Pass-3 snapshot stays read-only).
 - Reproducibility documented per-property.
 
 **Deliverable:** complete formal package, ready-for-review-PR on `zk-coins/research`.
@@ -233,21 +233,21 @@ The 100% Verification Initiative is **complete** when **all** of the following h
 1. Every row of §6 Progress is "verified" with a non-empty Apalache certificate.
 2. Every divergence between Apalache and Pass-3 is reconciled (resolution recorded in the per-property `notes.md`).
 3. Reproducibility verified: a third party can clone `zk-coins/research`, install Apalache from a pinned version, and re-run every certificate.
-4. The audit doc carries hyperlinks to each certificate.
+4. The certificate hyperlinks are published in [`CERTIFICATE.md`](./CERTIFICATE.md) (Pass-4 reconciliation table) and [`property/STATUS.md`](./property/STATUS.md). The Pass-3 audit document is a read-only snapshot and is intentionally not amended.
 5. The project lead signs off after reading the final cross-check table.
 
 Anything short of all five is **not** "100%" and the work continues.
 
 ## 8 · Reproducibility contract
 
-Every verification must be re-runnable by a third party. Each `formal/property/Pn_<Name>/` directory contains:
+Every verification must be re-runnable by a third party. Each `formal/property/Pnn_<Name>/` directory contains:
 
-- `property.tla` — the property and any inductive invariant
-- `apalache.cfg` — Apalache configuration (version, init, next, invariants, timeout)
-- `certificate.txt` — Apalache stdout from the successful run
-- `notes.md` — Apalache version, command line, time taken, any decisions
+- `property.tla` — the property and its inductive invariant (`IndInv` / `IndInvInit`). The constant instance is pinned in-module (`ConstInit`, consumed via `--cinit`); there is no separate `apalache.cfg`, because the proof is several runs with different `--init`/`--inv`/`--length` combinations a single TLC-style config cannot express.
+- `verify.sh` — the reproducible runner: it stages `property.tla` with its `module/` dependencies into a scratch dir (Apalache resolves `EXTENDS` only from the spec's own directory) and runs the check sequence, exiting non-zero on any unexpected outcome.
+- `certificate.txt` — Apalache stdout from the successful run (with a pinned-version header).
+- `notes.md` — Apalache + Z3 versions, command table, modeling decisions, vacuity probes, negative controls, Pass-3 cross-check.
 
-A `Makefile` or `verify.sh` at the directory root executes every verification in one command. CI integration is a stretch goal.
+[`verify-all.sh`](./verify-all.sh) at the `formal/` root executes the module gate plus every property certificate in one command. CI integration is a stretch goal.
 
 ## 9 · Honest residual after 100%
 
