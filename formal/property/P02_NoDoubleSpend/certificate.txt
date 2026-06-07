@@ -147,7 +147,8 @@ via ConstInit):
   apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv            --length=0 member_root.tla  # [C2] base
   apalache-mc check --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv            --length=1 member_root.tla  # [C3] step
   apalache-mc check --cinit=ConstInit --init=IndInvInit             --inv=LocatorBindsOrder --length=0 member_root.tla  # [C4] impl
-  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NoSharedRoot      --length=2 member_root.tla  # [C5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NoSharedRoot      --length=2 member_root.tla     # [C5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=LocatorBindsOrder --length=3 member_root_nc.tla  # [C6] negative control (expect Error)
 
 --------------------------------------------------------------------------------
 Negative control on the FULL model (the gate is load-bearing)

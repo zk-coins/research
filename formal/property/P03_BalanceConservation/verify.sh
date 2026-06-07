@@ -100,6 +100,7 @@ run_spec_ok  "$FSPEC" "[F2] inductive BASE   Init => IndInv (length 0)"         
 run_spec_ok  "$FSPEC" "[F3] inductive STEP   IndInv /\\ Next => IndInv' (length 1)"        --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv       --length=1
 run_spec_ok  "$FSPEC" "[F4] IMPLICATION      IndInv => FeeAtomicity (length 0)"            --cinit=ConstInit --init=IndInvInit             --inv=FeeAtomicity --length=0
 run_spec_err "$FSPEC" "[F5] VACUITY probe    NoneEverCompleted reachable-false (completed populated)" --cinit=ConstInit --init=Init --next=Next --inv=NoneEverCompleted --length=3
+run_spec_err "fee_atomicity_nc.tla" "[F6] NEGATIVE CONTROL decoupled fee admission => FeeAtomicity violated" --cinit=ConstInit --init=Init --next=Next --inv=FeeAtomicity --length=3
 rm -rf "$HERE/_apalache-out"
 
 echo "=================================================================="

@@ -175,7 +175,8 @@ Commands (zbe.tla, self-contained; MaxN=3, Payloads=1..2 via ConstInit):
   apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv         --length=0  zbe.tla  # [Z2] base
   apalache-mc check --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv         --length=1  zbe.tla  # [Z3] step
   apalache-mc check --cinit=ConstInit --init=IndInvInit             --inv=AntiTruncation --length=0  zbe.tla  # [Z4] impl
-  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NeverAccepted  --length=3  zbe.tla  # [Z5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NeverAccepted  --length=3  zbe.tla     # [Z5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=AntiTruncation --length=3  zbe_nc.tla  # [Z6] negative control (expect Error)
 
 Negative control (the per-chunk (N,i) AAD binding is load-bearing)
 -----------------------------------------------------------------

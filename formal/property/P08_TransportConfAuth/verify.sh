@@ -28,6 +28,7 @@ trap 'rm -rf "$STAGE"' EXIT
 cp "$MOD/Foundations.tla" "$MOD/Assumptions.tla" "$MOD/Transport.tla" "$STAGE/"
 cp "$HERE/$SPEC" "$STAGE/"
 cp "$HERE/zbe.tla" "$STAGE/"      # self-contained spec-v1.1 ZBE anti-truncation
+cp "$HERE/zbe_nc.tla" "$STAGE/"   # its negative control (wired as [Z6])
 cd "$STAGE"
 
 PASS=0; FAIL=0
@@ -100,6 +101,7 @@ run_spec_ok  "$ZSPEC" "[Z2] inductive BASE   Init => IndInv (length 0)"         
 run_spec_ok  "$ZSPEC" "[Z3] inductive STEP   IndInv /\\ Next => IndInv' (length 1)"        --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv         --length=1
 run_spec_ok  "$ZSPEC" "[Z4] IMPLICATION      IndInv => AntiTruncation (length 0)"          --cinit=ConstInit --init=IndInvInit             --inv=AntiTruncation --length=0
 run_spec_err "$ZSPEC" "[Z5] VACUITY probe    NeverAccepted reachable-false (accepted=TRUE reachable)" --cinit=ConstInit --init=Init --next=Next --inv=NeverAccepted --length=3
+run_spec_err "zbe_nc.tla" "[Z6] NEGATIVE CONTROL dropped (N,i) AAD => AntiTruncation violated" --cinit=ConstInit --init=Init --next=Next --inv=AntiTruncation --length=3
 
 echo "=================================================================="
 echo "RESULT: $PASS check(s) passed, $FAIL unexpected."

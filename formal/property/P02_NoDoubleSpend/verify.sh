@@ -122,6 +122,7 @@ run_expect_ok  "$MSPEC" "[C2] inductive BASE   Init => IndInv (length 0)"       
 run_expect_ok  "$MSPEC" "[C3] inductive STEP   IndInv /\\ Next => IndInv' (length 1)"        --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv            --length=1
 run_expect_ok  "$MSPEC" "[C4] IMPLICATION      IndInv => LocatorBindsOrder (length 0)"       --cinit=ConstInit --init=IndInvInit             --inv=LocatorBindsOrder --length=0
 run_expect_err "$MSPEC" "[C5] VACUITY probe    NoSharedRoot reachable (antecedent populated)" --cinit=ConstInit --init=Init      --next=Next --inv=NoSharedRoot       --length=2
+run_expect_err "member_root_nc.tla" "[C6] NEGATIVE CONTROL order-insensitive member_root => LocatorBindsOrder violated" --cinit=ConstInit --init=Init --next=Next --inv=LocatorBindsOrder --length=3
 rm -rf "$HERE/_apalache-out"
 
 echo "=================================================================="

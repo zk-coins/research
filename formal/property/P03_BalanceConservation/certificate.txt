@@ -138,7 +138,8 @@ Fee atomicity (fee_atomicity.tla, self-contained; Ocrs = 1..3 via ConstInit):
   apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv            --length=0  fee_atomicity.tla  # [F2] base
   apalache-mc check --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv            --length=1  fee_atomicity.tla  # [F3] step
   apalache-mc check --cinit=ConstInit --init=IndInvInit             --inv=FeeAtomicity      --length=0  fee_atomicity.tla  # [F4] implication
-  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NoneEverCompleted --length=3  fee_atomicity.tla  # [F5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NoneEverCompleted --length=3  fee_atomicity.tla     # [F5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=FeeAtomicity      --length=3  fee_atomicity_nc.tla  # [F6] negative control (expect Error)
 
 (EXTENDS resolution: verify.sh stages Foundations.tla, Assumptions.tla,
  Adversary.tla, Proofs.tla and property.tla into a temp dir and runs there, so
