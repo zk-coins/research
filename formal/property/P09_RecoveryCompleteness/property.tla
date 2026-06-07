@@ -40,7 +40,7 @@
 (*           a candidate the gate rejected; rejection is permanent for that *)
 (*           candidate (a discarded forgery is never silently re-admitted). *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline docs@b6972b8, post-docs#40):     *)
+(* GROUNDED IN THE SPECIFICATION (baseline docs@ed7fdece, spec-v1.1):       *)
 (*   - Sec. 4.5 step 1 -- re-derive keys from seed (ivk/dk/ovk/op/nk/spend) *)
 (*     => the wallet's own decryption capability is exactly its key-holder  *)
 (*     membership (A8-A11). Modelled by WalletKtxHolders below.             *)

@@ -31,8 +31,8 @@ encodes the nine normative clauses).
   (hooked into clause 3 when an issuance is present). Sec. **6.6** capability
   table row 3 — the prose target *"No inflation of others' assets — for every
   asset_id, outputs never exceed inputs plus an explicit, creator-bound Mint;
-  supply is auditable by every receiver"*. Baseline `docs@b6972b8` (post
-  `docs#40`).
+  supply is auditable by every receiver"*. Baseline `docs@ed7fdece`
+  (spec-v1.1 = `b6972b8` + `docs#46`/`#47`/`#48`).
 
 - **Pass-3 §4 P3 statement (the oracle), quoted verbatim:**
 
@@ -228,3 +228,90 @@ Matching the audit's own attack-class enumeration:
   Bitcoin, not protocol-prevented (Sec. 6.5); out of frame.
 - **A7 signature unforgeability and A3/A16 collision/commitment** properties are
   carried as `Assumptions` oracles, not re-proven here (decision D3).
+
+---
+
+# spec-v1.1 (docs#47) wording delta + fee-coin ATOMICITY (`fee_atomicity.tla`)
+
+## What `docs#47` changed (and why the existing P3 verdict is unchanged)
+
+The spec-v1.1 baseline (`docs@ed7fdece` = `b6972b8` + `docs#46`/`#47`/`#48`)
+added the §3.8 publisher **fee-coin** mechanism: a spender adds ONE ordinary
+output coin addressed to the publisher's `fee_address`, as one of the outputs
+under the transition's single `output_coins_root` (`ocr`).
+
+**The existing conservation result is unchanged — diff-confirm.** The fee coin is
+not a new object type: it is just another entry in `templates`, hence another
+member of `OutputIds(w)` and another addend of `OutAmount` — so clause-3 per-asset
+conservation (`In(a) + Mint(a) ≥ Out(a)`) and the clause-6 `ocr` binding already
+cover it (the spender pays exactly one fee, range-checked like any output). `[1]`–
+`[4]` re-confirm verbatim. (`module/Proofs.tla` `OutputIds` carries a fidelity
+comment to this effect.)
+
+## The genuinely NEW guarantee #47 adds — and the new invariant for it
+
+The new spec property is **atomicity**: the fee coin and the recipient payment
+are atomically bound — anchoring the one SpendRecord admits ALL outputs under that
+`ocr`, or NONE. Consequences the spec claims: a censoring publisher that never
+anchors collects nothing; the spender pays exactly one fee. This was previously
+only hand-argued; it is now machine-checked in **`fee_atomicity.tla`**, wired into
+[`verify.sh`](./verify.sh) as `[F1]`–`[F5]`:
+
+- **The invariant** `FeeAtomicity`: for every transition (`ocr`),
+  (a) `FeeCompleted(o) ⇔ PaymentCompleted(o)` (atomic), and
+  (b) `¬Anchored(o) ⇒ ¬FeeCompleted(o)` (censorship-safe — a never-anchored fee
+  is never spendable).
+- **Modelling** (the P02-accumulator lifecycle idiom over `ocr`s; A16: an `ocr`
+  IS its output set, with BOTH the payment and the fee under that ONE set).
+  Anchoring is **all-or-none admission of the whole `ocr`**: `Admit` moves an
+  `ocr` into `pending`, `Confirm` promotes the whole `ocr` to `completed`
+  (≥ 6 conf), `Reorg` reverts only `pending` (A12). A coin's status is DERIVED
+  from its `ocr`'s zone, never set per-output — that is the binding §3.8 gives.
+- **Unbounded, inductive.** `IndInv == TypeOK /\ ZonesDisjoint /\ FeeAtomicity`.
+  The three-check pattern all `NoError`: `[F2]` base `Init ⇒ IndInv`; `[F3]` step
+  `IndInv /\ Next ⇒ IndInv'`; `[F4]` impl `IndInv ⇒ FeeAtomicity`. `[F1]` bounded
+  sanity (length 6) supports.
+- **Vacuity probe `[F5]`.** `NoneEverCompleted` (`completed` stays empty forever)
+  returns a **counterexample** (`Error`, exit 12): an `ocr` DOES reach
+  `completed` via `Admit`;`Confirm`, so the `⇔` is exercised over a populated
+  `completed`, not vacuously.
+
+## Negative control (the single-ocr atomic binding is load-bearing)
+
+A copy `fee_atomicity_nc.tla` (module `fee_atomicity_nc`) DECOUPLES the fee from
+the payment's `ocr`: it adds independent fee zones `feePending`/`feeCompleted`
+advanced by their OWN `AdmitFee`/`ConfirmFee`, and `FeeCompleted(o)` reads
+`feeCompleted` instead of the payment's `completed`. Run:
+
+```
+apalache-mc check --cinit=ConstInit --init=Init --next=Next \
+  --inv=FeeAtomicity --length=2 fee_atomicity_nc.tla
+```
+
+returns a counterexample (`State 2: state invariant 0 violated`, `The outcome is:
+Error`, exit 12):
+
+```
+State1  Admit    pending = {1}     (payment ocr 1 anchored)
+State2  Confirm  completed = {1}, feeCompleted = {}
+        => FeeCompleted(1)=FALSE but PaymentCompleted(1)=TRUE
+           (the decoupled fee can lag — or, via AdmitFee/ConfirmFee, race ahead of
+           — the payment) => the IFF (and censorship clause) violated.
+```
+
+So once the fee is admitted independently of the payment's single `ocr`, the
+atomicity fails — the definitive proof that the all-or-none single-`ocr` binding
+is load-bearing. With the binding (committed `fee_atomicity.tla`), `[F1]`–`[F5]`
+all behave as designed. (Same idiom as the clause-3 negative run above; the copy
+and its `_apalache-out` discarded.)
+
+## Scope / honesty for the fee invariant
+
+- **Bounded universe, uniform argument.** `ConstInit` fixes `Ocrs = 1..3`; every
+  conjunct is per-`ocr` local and each action preserves it independently of
+  `|Ocrs|`. The unbounded claim is over the NUMBER of transitions (the inductive
+  step), not the `ocr` universe.
+- **What it does NOT claim.** It does not re-prove conservation (`[1]`–`[4]`) nor
+  the §3.8 byte-level fee-address derivation; it proves the LOGICAL all-or-none
+  atomicity + censorship-safety the single-`ocr` binding gives, the new #47
+  guarantee.

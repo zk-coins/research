@@ -11,7 +11,7 @@ invariant over the composed machine.
 - Apalache **0.58.0** (SMT backend Z3 **4.14.1.0**), `apalache-mc` on PATH.
 - Host: Apple Silicon (arm64), macOS (Darwin 25.5.0).
 - Date: 2026-06-07.
-- Spec baseline: `zk-coins/docs@b6972b8` (post-docs#40).
+- Spec baseline: `zk-coins/docs@ed7fdece` (spec-v1.1 = `b6972b8` + `docs#46`/`#47`/`#48`). `docs#46` is the deployment-topology PR (5 containers, optional external bitcoind/relay as a documented A13 trust trade-off); it is verification-neutral and changes no model — P06's at-least-one-honest-node receive gate is unaffected.
 
 ## Spec sections grounded
 

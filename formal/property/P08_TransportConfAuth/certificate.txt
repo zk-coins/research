@@ -21,14 +21,20 @@ Claim         : INV_P8 -- the conjunction of the three normative transport
                 (Pass-3 audit P8: HIGH, with F17 LOW on ACK freshness -- now
                 fixed in the spec; this model implements the fixed form.)
 Result        : VERIFIED -- unbounded, via inductive invariant.
+                spec-v1.1 (docs#47 §4.2.1) ZBE ANTI-TRUNCATION additionally
+                VERIFIED unbounded in zbe.tla: a truncated / extended / reordered
+                chunk sequence is REJECTED, so an accepted plaintext equals
+                exactly the sealed plaintext. Confidentiality (INV_P8) is
+                UNCHANGED by docs#47 (diff-confirm: ZBE reduces to A10).
 
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
-Date          : 2026-06-06
-Spec baseline : zk-coins/docs@b6972b8 (post-docs#40; Sec. 4.1, Sec. 4.2,
-                Sec. 4.6)
-Model         : property.tla (module `property`) EXTENDS module/Transport.tla
+Date          : 2026-06-07
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1 = b6972b8 + docs#46/#47/#48;
+                Sec. 4.1, Sec. 4.2, Sec. 4.6; ZBE §4.2.1)
+Models        : property.tla (module `property`) EXTENDS module/Transport.tla
                 (which EXTENDS Foundations, Assumptions)
+                zbe.tla (module `zbe`, spec-v1.1; self-contained)
 Runner        : ./verify.sh
 
 What "unbounded" means here
@@ -135,7 +141,60 @@ reverted. Apalache verdict: verified ⇒ confirmed at the transport state-machin
 level.
 
 ================================================================================
-FULL APALACHE TRANSCRIPT (verify.sh, 2026-06-06)
+spec-v1.1 (docs#47 §4.2.1) -- ZBE ANTI-TRUNCATION (zbe.tla)
+================================================================================
+docs#47 §4.2.1 adds ZBE: the bundle blob is sealed with chunked
+ChaCha20-Poly1305, per-chunk AAD "zkCoins/v1/Blob" || u32_be(N) || u32_be(i)
+binding total chunk count N and index i. Confidentiality (INV_P8) is UNCHANGED
+(diff-confirm): ZBE is a thin chunked framing over the SAME AEAD primitive and
+reduces to A10, so who-can-read (CanDecrypt/CanReadBundle) is untouched. The
+genuinely NEW guarantee -- previously hand-argued -- is INTEGRITY / ANTI-
+TRUNCATION: a truncated, extended, or reordered chunk sequence does not
+authenticate, so an accepted plaintext equals exactly the sealed plaintext.
+
+zbe.tla (self-contained) models the A10 AEAD as: a chunk carries its AAD-bound
+(n, idx); ChunkAuth(c, obsN, pos) == c.n = obsN /\ c.idx = pos-1 (the tag
+verifies IFF the chunk's sealed (N,i) matches the AAD the receiver computes at
+its position); Accepts(rx) == Len(rx) >= 1 /\ every chunk authenticates (missing
+magic / count / index mismatch aborts -- no partial accept). The adversary may
+truncate/extend/reorder/duplicate. Proven UNBOUNDED:
+  [Z2] base   Init => IndInv      (IndInv = TypeOK /\ AntiTruncation)
+  [Z3] step   IndInv /\ Next => IndInv'   (init via sealed/received = Gen(MaxN))
+  [Z4] impl   IndInv => AntiTruncation     (accepted => received = sealed)
+[Z1] bounded sanity (length 4) supports; [Z5] is a vacuity probe (NeverAccepted
+returns a counterexample => accepted=TRUE IS reachable, so AntiTruncation is
+exercised with a TRUE antecedent, not vacuously).
+
+An honest modelling note: the first Accepts had no Len(rx) >= 1 clause, so an
+EMPTY received vacuously authenticated and [Z3] failed with a counterexample; the
+fix -- reject a zero-chunk delivery -- is faithful to "missing magic MUST abort"
+and is a STRENGTHENING, not a weakening.
+
+Commands (zbe.tla, self-contained; MaxN=3, Payloads=1..2 via ConstInit):
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv         --length=4  zbe.tla  # [Z1] bounded sanity
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv         --length=0  zbe.tla  # [Z2] base
+  apalache-mc check --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv         --length=1  zbe.tla  # [Z3] step
+  apalache-mc check --cinit=ConstInit --init=IndInvInit             --inv=AntiTruncation --length=0  zbe.tla  # [Z4] impl
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NeverAccepted  --length=3  zbe.tla     # [Z5] vacuity probe (expect Error)
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=AntiTruncation --length=3  zbe_nc.tla  # [Z6] negative control (expect Error)
+
+Negative control (the per-chunk (N,i) AAD binding is load-bearing)
+-----------------------------------------------------------------
+The committed companion zbe_nc.tla DROPS the (N,i) binding -- ChunkAuth becomes
+TRUE regardless of (n,idx). Running:
+  apalache-mc check --cinit=ConstInit --init=Init --next=Next --inv=AntiTruncation --length=2 zbe_nc.tla
+yields a counterexample (The outcome is: Error, exit 12) at State 1:
+  sealed   = << chunk(n=1, idx=0, payload=2) >>                    (one chunk)
+  received = << chunk(n=1, idx=0, payload=2),
+                chunk(n=1, idx=0, payload=2) >>   accepted = TRUE  (DUPLICATED)
+          => received != sealed yet accepted => AntiTruncation violated.
+So with the binding dropped an extended/duplicated (and, symmetrically,
+truncated/reordered) sequence authenticates while differing from the sealed one
+-- the definitive proof the (N,i) AAD binding is load-bearing. The committed
+zbe.tla is unchanged; the negative-control _apalache-out was discarded.
+
+================================================================================
+FULL APALACHE TRANSCRIPT (verify.sh INV_P8 layer, 2026-06-06)
 ================================================================================
 Apalache version: 0.58.0
 Instance: TrConstInit (K=3, Holders={1,2,3}, RecipientOpPk=10, IvkHolders=KtxHolders={20,21}, Eve=99);
@@ -671,3 +730,34 @@ EXITCODE: OK
 ==================================================================
 RESULT: 4 check(s) passed, 0 unexpected.
 P08 Transport Conf+Auth: VERIFIED (unbounded, inductive).
+
+================================================================================
+ZBE ANTI-TRUNCATION TRANSCRIPT (verify.sh zbe.tla layer, 2026-06-07)
+================================================================================
+Apalache version: 0.58.0
+Instance: ConstInit (MaxN=3, Payloads=1..2).
+
+==================================================================
+ZBE ANTI-TRUNCATION -- zbe.tla (spec-v1.1 / docs#47 §4.2.1, unbounded)
+==================================================================
+### [Z1] bounded sanity  Init/Next |= IndInv (length 4)
+>>> [Z1] bounded sanity  Init/Next |= IndInv (length 4): OK
+
+### [Z2] inductive BASE   Init => IndInv (length 0)
+>>> [Z2] inductive BASE   Init => IndInv (length 0): OK
+
+### [Z3] inductive STEP   IndInv /\ Next => IndInv' (length 1)
+>>> [Z3] inductive STEP   IndInv /\ Next => IndInv' (length 1): OK
+
+### [Z4] IMPLICATION      IndInv => AntiTruncation (length 0)
+>>> [Z4] IMPLICATION      IndInv => AntiTruncation (length 0): OK
+
+### [Z5] VACUITY probe    NeverAccepted reachable-false (accepted=TRUE reachable)
+>>> [Z5] VACUITY probe    NeverAccepted reachable-false (accepted=TRUE reachable): OK (counterexample found, as required)
+
+==================================================================
+RESULT: 9 check(s) passed, 0 unexpected.
+P08 Transport Conf+Auth: VERIFIED (unbounded, inductive).
+  ZBE anti-truncation (docs#47 §4.2.1): unbounded [Z2]+[Z3]+[Z4];
+  bounded sanity [Z1] + vacuity probe [Z5]
+  (negative control recorded in notes.md).

@@ -57,7 +57,7 @@
 (*   fields ARE the entire public surface (Sec. 2.1 clause 9). The            *)
 (*   indistinguishability of two equal-ProofData witnesses is A2.             *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline docs@b6972b8, post-docs#40):      *)
+(* GROUNDED IN THE SPECIFICATION (baseline docs@ed7fdece, spec-v1.1):        *)
 (*   - Sec. 2.1 clause 9 (public-input binding): "All four ProofData fields  *)
 (*     ... are the proof's public inputs. Nothing else is public: amounts,    *)
 (*     asset ids, recipients, keys, and counts remain in the witness (zero-   *)

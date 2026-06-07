@@ -4,7 +4,7 @@
 (* it drives. Models spec Sec. 2.1 (the nine compliance clauses), Sec. 2.2  *)
 (* (InitialProof vs AccountUpdateProof, canonical empty account) and the    *)
 (* Sec. 6.5 v1 mint clauses that Sec. 2.1 clause 3 invokes, at commit       *)
-(* docs@b6972b8 (post docs#40).                                             *)
+(* docs@ed7fdece (spec-v1.1 = b6972b8 + docs#46/#47/#48).                   *)
 (*                                                                         *)
 (* C(...) is a faithful conjunction of the nine normative clauses. Three    *)
 (* places are ABSTRACTED, each with a cited justification:                  *)
@@ -78,6 +78,19 @@ NullifierSet(w) == { MkNullifier(w.nk, c.id) : c \in w.inputs }
 OutId(prevState, t, k) == MkCoinId(prevState, t.asset, k)
 
 \* The set of all output coin ids of the transition (clauses 5/6).
+\*
+\* POST-#47 FEE COIN (docs#47 §3.8). The publisher fee-coin mechanism adds ONE
+\* ordinary output coin addressed to the publisher's fee_address as one of the
+\* outputs under the transition's single output_coins_root (ocr). It is NOT a new
+\* object type: it is just another entry in `templates`, hence another member of
+\* OutputIds(w) and another addend of OutAmount (so clause 3 conservation and the
+\* clause 6 ocr binding already cover it -- the spender pays exactly one fee, and
+\* it is range-checked like any output). ATOMICITY: because the fee coin and the
+\* recipient payment are outputs under the SAME ocr, anchoring the one SpendRecord
+\* admits ALL outputs under that ocr or none (a censoring publisher that never
+\* anchors collects nothing). That all-or-none binding is the load-bearing fact
+\* now machine-checked in property/P03_BalanceConservation/fee_atomicity.tla; the
+\* per-asset conservation modelled here is unchanged by #47.
 \* @type: ($witness) => Set($coinId);
 OutputIds(w) ==
   { OutId(w.prevState, w.templates[k], k) : k \in DOMAIN w.templates }

@@ -42,7 +42,7 @@ runners). The scratch dir and all `_apalache-out` are removed on exit.
 
 ## Property statement (M4 ground-truth)
 
-- **Prose spec sections formalised** (baseline `zk-coins/docs@b6972b8`):
+- **Prose spec sections formalised** (baseline `zk-coins/docs@ed7fdece`, spec-v1.1):
   - **§2.1 clause 9 (public-input binding):** "All four `ProofData` fields —
     `new_account_state_hash`, `output_coins_root`, `input_nullifiers_root`,
     `coin_history_root` — **MUST** be the in-circuit-computed values above and
@@ -261,9 +261,12 @@ are quoted axioms (A10/A11/A3/A9). Full reconciliation across all properties is
 deferred to Phase 4.
 
 **Oracle/baseline provenance.** The Pass-3 P4 prose was written against the
-develop snapshot; the baseline here (`b6972b8`, post-`docs#40`) carries the same
+develop snapshot; the baseline here (`ed7fdece`, spec-v1.1) carries the same
 §2.1 clause-9 public-input binding, the §3.5 constant-per-batch metadata note,
 and the §4.2 delivery-payload minimisation, so the audit remains a valid oracle.
+The `docs#47` ZBE chunked framing (§4.2.1) is a thin AEAD wrapper that does not
+change what a verifier may learn from a proof (still only its public inputs, A2),
+so the zero-knowledge claim is unchanged by the v1.1 bump.
 
 ## Scope / what is deliberately NOT modelled
 

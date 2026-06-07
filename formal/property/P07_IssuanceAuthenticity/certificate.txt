@@ -15,7 +15,7 @@ Result        : VERIFIED -- unbounded, via inductive invariant over the §2.1
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
 Date          : 2026-06-06
-Spec baseline : zk-coins/docs@b6972b8 (post-docs#40, Architecture Sec. 6.5;
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1, Architecture Sec. 6.5;
                 Proofs Sec. 2.1 clause 3, Sec. 2.3.1 / 2.2)
 Model         : property.tla  (module `property`, EXTENDS module/Proofs.tla)
 Runner        : ./verify.sh  (stages Foundations+Assumptions+Proofs alongside)

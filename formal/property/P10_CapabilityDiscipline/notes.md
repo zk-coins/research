@@ -36,7 +36,7 @@ the other property runners).
   5.2 (view grant: release **only** within scope; grant must be unexpired and
   unrevoked; forward-only revocation), Sec. 5.2/5.3/5.4/5.8 (view capabilities are
   read-only and never confer spend authority; bearer secrets `zkview`/`zkavk` are
-  not node authorisations, Sec. 5.1 para 2). Baseline `zk-coins/docs@b6972b8`.
+  not node authorisations, Sec. 5.1 para 2). Baseline `zk-coins/docs@ed7fdece` (spec-v1.1).
 - **Pass-3 Sec. 4 P10 statement (the oracle), quoted verbatim:**
   > "A presented capability releases at most the data its scope authorizes; no
   > capability widens spend authority; bearer capabilities (`zkview`, `zkavk`)

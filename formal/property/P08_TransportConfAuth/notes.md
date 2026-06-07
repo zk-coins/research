@@ -28,7 +28,7 @@ property `INV_P8`, the inductive invariant `IndInv`, its assignment-form
   with the per-attempt `ack_nonce`; the sender-retention rule), Sec. 4.6 (the
   replication factor `k`, default 3, MUST NOT be < 2; the normative safety
   invariant "custody safety MUST NOT depend on availability"). Baseline
-  `docs@b6972b8` (post-`docs#40`).
+  `docs@ed7fdece` (spec-v1.1 = `b6972b8` + `docs#46`/`#47`/`#48`).
 
 - **Pass-3 §P8 statement (the oracle), quoted:**
   > "The off-chain delivery channel reveals to a relay (or a passive
@@ -206,11 +206,12 @@ and negative control (a) shows the LOW would return if the binding were removed.
 Full reconciliation across all properties is deferred to Phase 4.
 
 **Oracle/baseline provenance.** The Pass-3 audit's P8 prose was written against
-the pre-fix snapshot (ACK "not nonce-bound"); the baseline here (`b6972b8`)
-carries the fix. The *claim* (confidentiality + unforgeable, freshness-bound
-ACKs + retention-until-safe) is unchanged across the fix — only the freshness
-enforcement was added — so the audit remains a valid oracle; this note records
-the wording delta for any reader cross-referencing the audit text.
+the pre-fix snapshot (ACK "not nonce-bound"); the baseline here (`ed7fdece`,
+spec-v1.1) carries the fix (introduced in `b6972b8` via `docs#36`). The *claim*
+(confidentiality + unforgeable, freshness-bound ACKs + retention-until-safe) is
+unchanged across the fix — only the freshness enforcement was added — so the
+audit remains a valid oracle; this note records the wording delta for any reader
+cross-referencing the audit text.
 
 ## Scope / what is deliberately NOT modelled
 
@@ -229,3 +230,99 @@ the wording delta for any reader cross-referencing the audit text.
   not depend on timing.
 - **Detection-scan addressing** (`detect_tag`, `epk`, Sec. 4.4) is out of scope;
   only addressing-by-IVPK matters to delivery here.
+
+---
+
+# spec-v1.1 (docs#47 §4.2.1) wording delta + ZBE ANTI-TRUNCATION (`zbe.tla`)
+
+## What `docs#47` changed (and why the existing P8 verdict is unchanged)
+
+The spec-v1.1 baseline (`docs@ed7fdece` = `b6972b8` + `docs#46`/`#47`/`#48`)
+added §4.2.1 **ZBE** (zkCoins Bundle Encryption): the bundle blob is sealed with
+chunked ChaCha20-Poly1305 (NIP-44's 65535-byte limit), per-chunk AAD
+`"zkCoins/v1/Blob" ‖ u32_be(N) ‖ u32_be(i)` binding total chunk count `N` and
+index `i`, a counter nonce per chunk, `blob_id = H(ciphertext)`. The spec is
+normative: any tag failure / chunk-count mismatch / missing magic MUST abort —
+no partial accept.
+
+**The existing P8 result (confidentiality + ACK integrity + retention) is
+unchanged — diff-confirm.** ZBE is "a thin chunked framing over the same AEAD
+primitive" and **reduces to A10** (IND-CCA): *who can read* the bundle is still
+exactly the `K_tx` holder set, so `CanDecrypt`/`CanReadBundle` and
+`INV_P8`/`[1]`–`[4]` are untouched. (`module/Transport.tla` and
+`module/Assumptions.tla` A10 carry fidelity comments to this effect.)
+
+## The genuinely NEW guarantee #47 adds — and the new invariant for it
+
+The new property is **integrity / anti-truncation**: because each chunk's AAD
+binds `(N, i)`, a truncated, extended, or reordered chunk sequence does not
+authenticate, so an accepted plaintext equals exactly the sealed plaintext. This
+was previously only hand-argued; it is now machine-checked in **`zbe.tla`**,
+wired into [`verify.sh`](./verify.sh) as `[Z1]`–`[Z5]`:
+
+- **The invariant** `AntiTruncation`: `accepted ⇒ (received = sealed)` — if ZBE
+  decryption accepted the chunk sequence, it equals exactly the sealed sequence.
+- **Modelling** (the A10 AEAD oracle). A chunk carries its AAD-bound `(n, idx)`
+  plus an opaque payload. `ChunkAuth(c, obsN, pos) == c.n = obsN /\ c.idx =
+  pos-1` — the Poly1305 tag verifies at a receiver position IFF the chunk's
+  sealed `(N, i)` matches the AAD the receiver computes there (observed count +
+  position). `Accepts(rx)` = `Len(rx) ≥ 1` (missing magic / zero chunks aborts)
+  `/\` every chunk authenticates — so the indices must be exactly the contiguous
+  `0..Len-1` the AAD pins and the count must match (no partial accept). The
+  relay/adversary may TRUNCATE, EXTEND, REORDER, or DUPLICATE (`received` is any
+  sequence of sealed chunks).
+- **Unbounded, inductive.** `IndInv == TypeOK /\ AntiTruncation`. The three-check
+  pattern all `NoError`: `[Z2]` base `Init ⇒ IndInv`; `[Z3]` step `IndInv /\ Next
+  ⇒ IndInv'` (init via `sealed`/`received = Gen(MaxN)` + IndInv); `[Z4]` impl
+  `IndInv ⇒ AntiTruncation`. `[Z1]` bounded sanity (length 4) supports.
+- **An honest modelling fix the induction forced.** The first `Accepts` had no
+  `Len(rx) ≥ 1` clause, so an EMPTY `received` vacuously authenticated
+  (`accepted=TRUE`, `received ≠ sealed`) and `[Z3]` failed with a counterexample.
+  The fix — reject a zero-chunk delivery — is faithful to the spec's "missing
+  magic MUST abort" and is a STRENGTHENING, not a weakening. With it `[Z3]`
+  closes.
+- **Vacuity probe `[Z5]`.** `NeverAccepted` (`accepted` stays FALSE forever)
+  returns a **counterexample** (`Error`, exit 12): the honest full delivery
+  (`received = sealed`) IS accepted, so `AntiTruncation` is exercised with a TRUE
+  antecedent, not vacuously.
+
+## Negative control (the per-chunk (N,i) AAD binding is load-bearing)
+
+A copy `zbe_nc.tla` (module `zbe_nc`) DROPS the `(N,i)` AAD binding —
+`ChunkAuth(c, obsN, pos) == TRUE` (the AAD does not cover count/index). Run:
+
+```
+apalache-mc check --cinit=ConstInit --init=Init --next=Next \
+  --inv=AntiTruncation --length=2 zbe_nc.tla
+```
+
+returns a counterexample (`State 1: state invariant 0 violated`, `The outcome is:
+Error`, exit 12):
+
+```
+sealed   = << chunk(n=1, idx=0, payload=2) >>                    (one chunk)
+received = << chunk(n=1, idx=0, payload=2),
+              chunk(n=1, idx=0, payload=2) >>   accepted = TRUE  (DUPLICATED!)
+        => received ≠ sealed yet accepted => AntiTruncation violated.
+```
+
+i.e. with the binding dropped, an EXTENDED/DUPLICATED (and, symmetrically,
+truncated/reordered) chunk sequence authenticates while differing from the sealed
+one — the definitive proof the `(N,i)` AAD binding is load-bearing. With the
+binding (committed `zbe.tla`), `[Z1]`–`[Z5]` all behave as designed. (Same idiom
+as negative controls (a)/(b) above; the copy and its `_apalache-out` discarded.)
+
+## Scope / honesty for the ZBE invariant
+
+- **Confidentiality is NOT this file.** ZBE confidentiality stays the existing
+  `CanDecrypt`/A10 fact (`INV_P8`, `[1]`–`[4]`). `zbe.tla` is specifically the
+  integrity / anti-truncation layer the new chunked framing adds.
+- **Bounded universe, uniform argument.** `ConstInit` fixes `MaxN=3`,
+  `Payloads=1..2` — enough for truncation, reorder, and duplication to be
+  expressible. The `(N,i)` binding is per-chunk local and `Accepts` is a
+  per-position conjunction, so the argument is uniform in `MaxN`/`|Payloads|`;
+  the unbounded claim is over the NUMBER of seal/deliver transitions.
+- **What it does NOT claim.** It does not re-derive ChaCha20-Poly1305 AEAD
+  security (that is A10) nor the byte-level counter-nonce / `blob_id = H(ct)`
+  construction; it proves the LOGICAL anti-truncation the per-chunk `(N,i)` AAD
+  binding gives, the new #47 guarantee.

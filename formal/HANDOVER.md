@@ -19,7 +19,7 @@ In this order:
 1. **[`README.md`](./README.md)** — Initiative framing, three classes of "100%", what's in/out of scope, the A1–A17 axiom table with which-property-consumes-which, the M1–M4 meta-assumptions, the directory layout. (This is canonical.)
 2. **[`100-percent-verification-plan.md`](./100-percent-verification-plan.md)** — The operational plan. Phase 0–6 deliverables and time targets, risk inventory, hard dependency on `docs#40`, progress table.
 3. **[Pass-3 audit `audit/2026-06-06.03.md`](../audit/2026-06-06.03.md)** — Game-style manual arguments for every property. Read §4 (per-property analysis) carefully — this is what you are mechanizing.
-4. **The spec itself**, pinned at commit `a7a9f97`: `git show a7a9f97 -- docs/specification.md` in a clone of `zk-coins/docs`. Or web: `https://github.com/zk-coins/docs/blob/a7a9f97/docs/specification.md`.
+4. **The spec itself**, pinned at the current baseline `ed7fdece` (spec-v1.1): `git show ed7fdece -- docs/specification.md` in a clone of `zk-coins/docs`. Or web: `https://github.com/zk-coins/docs/blob/ed7fdece/docs/specification.md`. (The original handover read it at the pre-#40 tip `a7a9f97`; the baseline has since advanced `a7a9f97` → `b6972b8` (spec-v1.0, +#40) → `ed7fdece` (spec-v1.1, +#46/#47/#48).)
 
 Do not start TLA+ work until you have read all four.
 
@@ -417,7 +417,8 @@ Quoted from [`README.md`](./README.md) for at-hand reference; do not duplicate, 
 
 | What | Where |
 |---|---|
-| Spec snapshot | `https://github.com/zk-coins/docs/blob/a7a9f97/docs/specification.md` |
+| Spec snapshot (current baseline, spec-v1.1) | `https://github.com/zk-coins/docs/blob/ed7fdece/docs/specification.md` |
+| Spec snapshot (original handover pin, pre-#40) | `https://github.com/zk-coins/docs/blob/a7a9f97/docs/specification.md` |
 | Open spec PR (Variant-2) | [`docs#40`](https://github.com/zk-coins/docs/pull/40) |
 | Pass-1 audit | `audit/spec-2026-06-06-01` branch, `audit/2026-06-06.01.md` |
 | Pass-2 audit | `audit/spec-2026-06-06-02` branch, `audit/2026-06-06.02.md` |

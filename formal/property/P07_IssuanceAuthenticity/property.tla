@@ -17,7 +17,7 @@
 (*   Game: the adversary wins if a coin with asset a is admitted via the   *)
 (*   v1 mint clauses but the signing account is NOT the creator account.   *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline docs@b6972b8, post-docs#40):    *)
+(* GROUNDED IN THE SPECIFICATION (baseline docs@ed7fdece, spec-v1.1):      *)
 (*   - Architecture Sec. 6.5 -- v1 issuance clauses (a)-(d): the mint       *)
 (*     circuit MUST verify issuance_version==1 (a); H(creator_pubkey) ==    *)
 (*     prev_account_state.owner (b); the asset_id derivation               *)

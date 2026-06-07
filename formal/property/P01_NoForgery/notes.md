@@ -102,7 +102,7 @@ covered by P7)":
 > **Verdict.** Sound under A1, A3, A5, A6, A7. **Confidence: HIGH** for the spec
 > design.
 
-## Spec sections formalised (baseline docs@b6972b8, post-docs#40)
+## Spec sections formalised (baseline docs@ed7fdece, spec-v1.1)
 
 - **Proofs §2.1 clause 2** — input authenticity: `txn_sig` MUST be valid under
   `txn_pubkey = prev_account_state.current_pubkey` over the transition message

@@ -39,8 +39,9 @@ machine certificate of the initiative.
   first-spend-wins), Sec. 3.7 (the nullifier accumulator), Sec. 3.10
   (transaction states; the accumulator absorbs every *admitted*
   `pending ∪ completed` batch, not only `completed`), Architecture Sec. 6.6
-  (≤ 5-block reorg bound ⇒ `completed` absolute). Baseline `docs@b6972b8`
-  (post-`docs#40`).
+  (≤ 5-block reorg bound ⇒ `completed` absolute). Baseline `docs@ed7fdece`
+  (spec-v1.1 = `b6972b8` + `docs#46`/`#47`/`#48`; #47 does not touch the
+  accumulator clauses, so this layer is diff-confirm).
 - **Pass-3 §4 game-style statement (the oracle):** "Each coin `c` can be
   successfully spent at most once. A PPT adversary cannot cause two distinct
   honest receivers to credit two distinct downstream coins that both consume
@@ -173,8 +174,8 @@ Phase-3 P02 certificate; none of it affects the abstract invariant proven here:
 This phase lifts P02 from the abstract three-set smoke test to the **full
 post-docs#40 on-chain model**, proving the same safety claim over the concrete
 `BatchInscription` state machine in `module/Onchain.tla` (baseline
-`docs@b6972b8`, On-chain Sec. 3.4–3.10). `abstract.tla` (Phase 0) is preserved
-unchanged.
+`docs@ed7fdece` spec-v1.1, On-chain Sec. 3.4–3.10). `abstract.tla` (Phase 0) is
+preserved unchanged.
 
 ## What the full model adds over the abstract
 
@@ -362,3 +363,96 @@ the concrete `BatchInscription` admission path, not just the set abstraction.
 - **Reorg refinement.** The Reorg continuity over-approximation above is a
   candidate `Onchain.tla` refinement (suffix-only revert) for a later phase;
   it does not affect the P2 safety verdict.
+
+---
+
+# spec-v1.1 (docs#47) wording delta + Layer C — member_root ORDER-binding
+
+## What `docs#47` changed (and why the existing P2 verdict is unchanged)
+
+The spec-v1.1 baseline (`docs@ed7fdece` = `b6972b8` + `docs#46`/`#47`/`#48`)
+changed the on-chain `bundle_locator` from
+`Hc("BatchBundle", serialize(BatchBundle))` to
+`Hc("BatchBundle", prev_root ‖ new_root ‖ u32-be(m) ‖ member_root)`, where
+`member_root` is a binary Poseidon hash tree over the **ordered** member
+SpendRecords (leaf `Hc("BatchMember", serialize(SpendRecord_j))`, node
+`Hc("BatchMember/Node", left, right)`, padding leaf `Hc("BatchMember", ∅)`); and
+`C_batch` became an explicit binary recursive aggregator (arity 2) with public
+inputs `(prev_root, new_root, m, member_root)`.
+
+**The existing no-double-spend result (Layers A + B) is unchanged — diff-confirm.**
+The locator is modelled as an opaque injective `Int` tag (`bundleLocator`), the
+accumulator as the set behind `prev_root`/`new_root` under A16, and `C_batch`'s
+half-aggregation as `AggSoundValid` (⇔ all members valid, irrespective of the
+binary-tree fold shape). `docs#47` concretized exactly those abstracted things;
+none of the §3.6/§3.7 accumulator clauses Layer B gates on changed. So all ten
+Layer A/B checks re-confirm verbatim.
+
+## The genuinely NEW guarantee #47 adds — and the new invariant for it
+
+The new locator preimage "binds both the exact member set AND their order", and
+the scanner recomputes `member_root` from the ordered records and rejects a
+mismatch (§3.6 step 6). This is a NEW load-bearing property previously only
+hand-argued. It is now machine-checked in **`member_root.tla`** (Layer C), wired
+into [`verify.sh`](./verify.sh) as `[C1]`–`[C5]`:
+
+- **The invariant** `LocatorBindsOrder`: for any two admitted bundles,
+  `b1.locator.mr = b2.locator.mr ⇒ b1.memberSeq = b2.memberSeq` — sharing a
+  `member_root` forces the same **ordered** member sequence (a publisher cannot
+  reorder members or swap the member set under one `member_root`/proof).
+- **Hash modelling** (the repo idiom, A3/A16): `MemberRoot(seq)` is the
+  order-sensitive binary-tree fold, modelled as INJECTIVE in the sequence
+  (digest = structured preimage; equal digest ⇔ equal **ordered** sequence).
+- **Unbounded, inductive.** `IndInv == TypeOK /\ RootIsOfOwnSeq /\
+  LocatorBindsOrder`. The three-check pattern all `NoError`:
+  - `[C2]` base `Init ⇒ IndInv`; `[C3]` step `IndInv /\ Next ⇒ IndInv'` (init via
+    `admitted = Gen(4)` + IndInv body); `[C4]` impl `IndInv ⇒ LocatorBindsOrder`.
+  - `[C1]` bounded sanity (length 4) is a supporting reachability pass.
+- **Why `b.locator.mr` and not the whole locator (NON-VACUITY).** The whole
+  4-tuple locator is injective, so "equal whole locator" only holds for `b1=b2`
+  (records collapse in `admitted`) — a vacuous antecedent. The `member_root`
+  FIELD is shared across distinct bundles (same ordered members, different
+  prev/new roots), so the antecedent **is** reachable for `b1 ≠ b2`. The
+  **vacuity probe** `[C5]` confirms it: `NoSharedRoot` (the antecedent never
+  holds across distinct bundles) returns a **counterexample** (`Error`, exit 12)
+  — so `LocatorBindsOrder` is asserted over a populated antecedent.
+
+## Negative control (the order binding is load-bearing)
+
+A copy `member_root_nc.tla` (module `member_root_nc`) replaces the
+order-sensitive `MemberRoot` with the order-INSENSITIVE set-hash
+`MemberRootSet(seq) == { seq[i] : i ∈ DOMAIN seq }` (so `member_root` = the
+member SET only — the order binding is DELETED). Run:
+
+```
+apalache-mc check --cinit=ConstInit --init=Init --next=Next \
+  --inv=LocatorBindsOrder --length=2 member_root_nc.tla
+```
+
+returns a counterexample (`State 2: state invariant 0 violated`, `The outcome is:
+Error`, exit 12):
+
+```
+State1  admit  memberSeq = <<3,2>>, locator.mr = {2,3}     (one ordering)
+State2  admit  memberSeq = <<2,3>>, locator.mr = {2,3}     (the OTHER ordering)
+        => two distinct permutations share a member_root but differ as
+           sequences => LocatorBindsOrder violated.
+```
+
+So with the order-insensitive hash the SAME invariant becomes FALSE — the
+definitive proof the order binding has real content. With the order-sensitive
+`MemberRoot` (committed `member_root.tla`), all of `[C1]`–`[C5]` behave as
+designed. (Same idiom as the `[GATE]`-deletion negative run above: derived from a
+copy, the copy and its `_apalache-out` discarded.)
+
+## Scope / honesty for Layer C
+
+- **Bounded universe, uniform argument.** `ConstInit` fixes `MemberIds=1..3`,
+  `RootTags=1..2`, `MaxM=3` — enough for distinct permutations to exist. The
+  argument is uniform: `LocatorBindsOrder` is a pairwise-local fact over
+  injective structured digests, preserved by each `Admit` independently of the
+  universe sizes. The unbounded claim is over the NUMBER of admitted bundles
+  (the inductive step, `admitted = Gen(4)`), not the data universe.
+- **What Layer C does NOT claim.** It does not re-prove no-double-spend (Layers
+  A/B) nor the §3.6-step-6 byte-level recomputation; it proves the LOGICAL
+  set+order binding the new `member_root` gives, which is the new #47 guarantee.

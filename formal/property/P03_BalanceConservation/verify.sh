@@ -36,6 +36,34 @@ run_expect_ok () { # <label> <args...>
   echo
 }
 
+run_spec_ok () { # <specfile> <label> <args...>
+  local spec=$1; local label=$2; shift 2
+  echo "### $label"
+  local out
+  out=$(apalache-mc check "$@" "$spec" 2>&1)
+  if echo "$out" | grep -q "The outcome is: NoError"; then
+    echo ">>> $label: OK"; PASS=$((PASS+1))
+  else
+    echo "$out" | grep -E "The outcome is|EXITCODE" | head -2
+    echo ">>> $label: UNEXPECTED (expected NoError)"; FAIL=$((FAIL+1))
+  fi
+  echo
+}
+
+run_spec_err () { # <specfile> <label> <args...>  -- a check that MUST find a counterexample
+  local spec=$1; local label=$2; shift 2
+  echo "### $label"
+  local out
+  out=$(apalache-mc check "$@" "$spec" 2>&1)
+  if echo "$out" | grep -q "The outcome is: Error"; then
+    echo ">>> $label: OK (counterexample found, as required)"; PASS=$((PASS+1))
+  else
+    echo "$out" | grep -E "The outcome is|EXITCODE" | head -2
+    echo ">>> $label: UNEXPECTED (expected Error/counterexample)"; FAIL=$((FAIL+1))
+  fi
+  echo
+}
+
 echo "Apalache version: $(apalache-mc version 2>/dev/null | head -1)"
 echo "Instance: Accounts = {1,2}, one v1 asset family (ConstInit)."
 echo "Inductive argument is uniform in the account/asset universe (notes.md)."
@@ -55,12 +83,35 @@ cd "$HERE"
 rm -rf "$STAGE"
 rm -rf "$HERE/_apalache-out"
 
+# ===========================================================================
+# spec-v1.1 (docs#47 §3.8) FEE-COIN ATOMICITY (fee_atomicity.tla, self-
+# contained: EXTENDS Integers/Apalache). Proves the NEW #47 guarantee that the
+# fee coin and the recipient payment under the SAME ocr are admitted all-or-none
+# (atomic), and a never-anchored transition's fee is never spendable.
+# Universe via ConstInit (Ocrs = 1..3).
+# ===========================================================================
+echo "=================================================================="
+echo "FEE ATOMICITY -- fee_atomicity.tla (spec-v1.1 / docs#47 §3.8, unbounded)"
+echo "=================================================================="
+cd "$HERE"
+FSPEC=fee_atomicity.tla
+run_spec_ok  "$FSPEC" "[F1] bounded sanity  Init/Next |= IndInv (length 6)"               --cinit=ConstInit --init=Init      --next=Next --inv=IndInv       --length=6
+run_spec_ok  "$FSPEC" "[F2] inductive BASE   Init => IndInv (length 0)"                    --cinit=ConstInit --init=Init      --next=Next --inv=IndInv       --length=0
+run_spec_ok  "$FSPEC" "[F3] inductive STEP   IndInv /\\ Next => IndInv' (length 1)"        --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv       --length=1
+run_spec_ok  "$FSPEC" "[F4] IMPLICATION      IndInv => FeeAtomicity (length 0)"            --cinit=ConstInit --init=IndInvInit             --inv=FeeAtomicity --length=0
+run_spec_err "$FSPEC" "[F5] VACUITY probe    NoneEverCompleted reachable-false (completed populated)" --cinit=ConstInit --init=Init --next=Next --inv=NoneEverCompleted --length=3
+run_spec_err "fee_atomicity_nc.tla" "[F6] NEGATIVE CONTROL decoupled fee admission => FeeAtomicity violated" --cinit=ConstInit --init=Init --next=Next --inv=FeeAtomicity --length=3
+rm -rf "$HERE/_apalache-out"
+
 echo "=================================================================="
 echo "RESULT: $PASS check(s) passed, $FAIL unexpected."
 if [ "$FAIL" -eq 0 ]; then
   echo "P03 BalanceConservation: VERIFIED (unbounded, inductive)."
   echo "  Unbounded proof = [2] base + [3] step + [4] implication."
   echo "  [1] is a supporting bounded reachability sanity pass."
+  echo "  Fee atomicity (docs#47 §3.8): unbounded [F2]+[F3]+[F4];"
+  echo "  bounded sanity [F1] + vacuity probe [F5]"
+  echo "  (negative control recorded in notes.md)."
 else
   echo "P03: FAILURE."
 fi
