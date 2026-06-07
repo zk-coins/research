@@ -39,6 +39,21 @@ run_expect_ok () { # <specfile> <label> <args...>
   echo
 }
 
+run_expect_err () { # <specfile> <label> <args...>  -- a check that MUST find a counterexample
+  local spec=$1; local label=$2; shift 2
+  echo "### $label"
+  local out
+  out=$(apalache-mc check "$@" "$spec" 2>&1)
+  if echo "$out" | grep -q "The outcome is: Error"; then
+    echo "$out" | grep -E "The outcome is:|state invariant.*violated" | head -2
+    echo ">>> $label: OK (counterexample found, as required)"; PASS=$((PASS+1))
+  else
+    echo "$out" | grep -E "The outcome is|EXITCODE" | head -2
+    echo ">>> $label: UNEXPECTED (expected Error/counterexample)"; FAIL=$((FAIL+1))
+  fi
+  echo
+}
+
 run_typecheck () { # <specfile> <label>
   local spec=$1; local label=$2
   echo "### $label"
@@ -91,6 +106,24 @@ cd "$HERE"
 rm -rf "$STAGE"
 rm -rf "$HERE/_apalache-out"
 
+# ===========================================================================
+# LAYER C -- spec-v1.1 (docs#47) member_root ORDER-binding (member_root.tla,
+# self-contained: EXTENDS Integers/Sequences/Apalache). Proves the NEW #47
+# guarantee that the bundle_locator's member_root binds member SET AND ORDER.
+# Universe via ConstInit (MemberIds=1..3, RootTags=1..2, MaxM=3).
+# ===========================================================================
+echo "=================================================================="
+echo "LAYER C -- member_root ORDER-binding (spec-v1.1 / docs#47, unbounded)"
+echo "=================================================================="
+cd "$HERE"
+MSPEC=member_root.tla
+run_expect_ok  "$MSPEC" "[C1] bounded sanity  Init/Next |= IndInv (length 4)"               --cinit=ConstInit --init=Init      --next=Next --inv=IndInv            --length=4
+run_expect_ok  "$MSPEC" "[C2] inductive BASE   Init => IndInv (length 0)"                    --cinit=ConstInit --init=Init      --next=Next --inv=IndInv            --length=0
+run_expect_ok  "$MSPEC" "[C3] inductive STEP   IndInv /\\ Next => IndInv' (length 1)"        --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv            --length=1
+run_expect_ok  "$MSPEC" "[C4] IMPLICATION      IndInv => LocatorBindsOrder (length 0)"       --cinit=ConstInit --init=IndInvInit             --inv=LocatorBindsOrder --length=0
+run_expect_err "$MSPEC" "[C5] VACUITY probe    NoSharedRoot reachable (antecedent populated)" --cinit=ConstInit --init=Init      --next=Next --inv=NoSharedRoot       --length=2
+rm -rf "$HERE/_apalache-out"
+
 echo "=================================================================="
 echo "RESULT: $PASS check(s) passed, $FAIL unexpected."
 if [ "$FAIL" -eq 0 ]; then
@@ -98,6 +131,9 @@ if [ "$FAIL" -eq 0 ]; then
   echo "  Layer A (abstract):    unbounded   [A2]+[A3]+[A4]"
   echo "  Layer B (full Onchain): unbounded no-double-spend [B2]+[B3]+[B4];"
   echo "                          bounded safety [B1] + fragment continuity [B5]."
+  echo "  Layer C (member_root):  unbounded order-binding [C2]+[C3]+[C4];"
+  echo "                          bounded sanity [C1] + vacuity probe [C5]"
+  echo "                          (negative control recorded in notes.md)."
 else
   echo "P02: FAILURE."
 fi

@@ -13,15 +13,21 @@ Result        : VERIFIED.
                   (+ disjoint zones) via inductive inv over the concrete
                   BatchInscription machine; chain prev_root continuity verified
                   bounded over the admit/confirm fragment (honest scope below).
+                - Layer C (spec-v1.1 / docs#47 member_root): UNBOUNDED
+                  member_root ORDER-binding via inductive inv (a publisher cannot
+                  reorder members or swap the member set under one locator);
+                  vacuity probe + negative control confirm load-bearing.
 
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
-Date          : 2026-06-06
-Spec baseline : zk-coins/docs@b6972b8 (post-docs#40, On-chain Sec. 3.4/3.5/3.6/
-                3.7/3.9/3.10)
-Models        : abstract.tla  (module `abstract`, Phase 0; self-contained)
-                property.tla  (module `property`, EXTENDS module/Onchain.tla)
-Runner        : ./verify.sh  (stages Foundations+Assumptions+Onchain for Layer B)
+Date          : 2026-06-07
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1 = b6972b8 + docs#46/#47/#48;
+                On-chain Sec. 3.4/3.5/3.6/3.7/3.9/3.10; member_root §3.5/§3.6)
+Models        : abstract.tla     (module `abstract`, Phase 0; self-contained)
+                property.tla      (module `property`, EXTENDS module/Onchain.tla)
+                member_root.tla   (module `member_root`, spec-v1.1; self-contained)
+Runner        : ./verify.sh  (stages Foundations+Assumptions+Onchain for Layer B;
+                Layer C self-contained)
 
 --------------------------------------------------------------------------------
 LAYERS -- what each one proves
@@ -53,6 +59,29 @@ Layer B -- property.tla (this phase) EXTENDS the FULL on-chain state machine
     [B1] bounded safety sanity, INV, length 6 (= finality depth K).
     [B5] chain prev_root continuity (OnPrevRootContinuity, local step form)
          over the admit/confirm fragment, length 6.
+
+Layer C -- member_root.tla (spec-v1.1 / docs#47; self-contained). docs#47 changed
+  the bundle_locator to Hc("BatchBundle", prev_root || new_root || u32-be(m) ||
+  member_root) with member_root the order-sensitive binary Poseidon tree over the
+  ORDERED members. The NEW guarantee (previously hand-argued): the locator's
+  member_root binds member SET AND ORDER -- a publisher cannot reorder members or
+  swap the member set under one member_root/proof. MemberRoot is modelled
+  (A3/A16) as INJECTIVE in the ordered sequence (digest = ordered preimage).
+  Proven UNBOUNDED:
+    [C2] base   Init => IndInv          (IndInv = TypeOK /\ RootIsOfOwnSeq
+                                          /\ LocatorBindsOrder)
+    [C3] step   IndInv /\ Next => IndInv'   (init via admitted = Gen(4))
+    [C4] impl   IndInv => LocatorBindsOrder
+  -> LocatorBindsOrder (b1.locator.mr = b2.locator.mr => b1.memberSeq =
+     b2.memberSeq) holds in every reachable state, any number of admitted bundles.
+  Supporting:
+    [C1] bounded sanity, IndInv, length 4.
+    [C5] VACUITY probe: NoSharedRoot returns a counterexample (the antecedent
+         -- distinct bundles sharing a member_root -- IS reachable), so
+         LocatorBindsOrder is asserted over a populated antecedent, not vacuously.
+  The existing Layer A/B no-double-spend result is UNCHANGED by docs#47
+  (diff-confirm): the locator is an opaque injective Int tag and none of the
+  accumulator clauses changed.
 
 --------------------------------------------------------------------------------
 "UNBOUNDED" and the Seq variable (honest scope)
@@ -112,6 +141,14 @@ Onchain; OnConstInit fixes small finite universes):
   apalache-mc check --cinit=OnConstInit --init=IndInvInit --next=OnNext           --inv=INV          --length=0 property.tla  # [B4] impl
   apalache-mc check --cinit=OnConstInit --init=OnInit     --next=NextAdmitConfirm --inv=INV_Continuity --length=6 property.tla  # [B5] continuity (fragment)
 
+Layer C (member_root.tla, self-contained; MemberIds=1..3, RootTags=1..2, MaxM=3
+via ConstInit):
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv            --length=4 member_root.tla  # [C1] bounded sanity
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=IndInv            --length=0 member_root.tla  # [C2] base
+  apalache-mc check --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv            --length=1 member_root.tla  # [C3] step
+  apalache-mc check --cinit=ConstInit --init=IndInvInit             --inv=LocatorBindsOrder --length=0 member_root.tla  # [C4] impl
+  apalache-mc check --cinit=ConstInit --init=Init       --next=Next --inv=NoSharedRoot      --length=2 member_root.tla  # [C5] vacuity probe (expect Error)
+
 --------------------------------------------------------------------------------
 Negative control on the FULL model (the gate is load-bearing)
 --------------------------------------------------------------------------------
@@ -129,8 +166,25 @@ yields a counterexample (The outcome is: Error, exit 12). 3-step trace:
 (nf3 = MkNullifier(0, SmokeCoinId(3)).) Onchain was restored / the /tmp copy
 discarded; the committed module is unchanged.
 
+--------------------------------------------------------------------------------
+Negative control on Layer C (the member_root ORDER binding is load-bearing)
+--------------------------------------------------------------------------------
+The committed companion member_root_nc.tla replaces the order-sensitive
+MemberRoot with the order-INSENSITIVE set-hash
+MemberRootSet(seq) == { seq[i] : i \in DOMAIN seq } (member_root = the member SET
+only -- the order binding is DELETED), checked with
+  apalache-mc check --cinit=ConstInit --init=Init --next=Next --inv=LocatorBindsOrder --length=2 member_root_nc.tla
+yields a counterexample (The outcome is: Error, exit 12). 2-step trace:
+  State1  admit  memberSeq = <<3,2>>, locator.mr = {2,3}   (one ordering)
+  State2  admit  memberSeq = <<2,3>>, locator.mr = {2,3}   (the OTHER ordering)
+          => two distinct permutations share a member_root but differ as
+             sequences => LocatorBindsOrder violated.
+So the SAME invariant becomes FALSE the moment the order binding is removed --
+the definitive proof it has real content. The committed member_root.tla is
+unchanged; the negative-control _apalache-out was discarded.
+
 ================================================================================
-FULL verify.sh TRANSCRIPT (2026-06-06)
+FULL verify.sh TRANSCRIPT (2026-06-07)
 ================================================================================
 Apalache version: 0.58.0
 
@@ -140,23 +194,23 @@ LAYER A -- abstract accumulator model (Phase 0, unbounded)
 Universe: Nullifier = 1..6 (ConstInit); inductive argument uniform in |Nullifier|.
 
 ### [A1] bounded sanity  Init/Next |= IndInv (length 12)
-The outcome is: NoError                                           I@23:35:59.996
-Checker reports no error up to computation length 12              I@23:35:59.996
+The outcome is: NoError                                           I@12:18:15.393
+Checker reports no error up to computation length 12              I@12:18:15.394
 >>> [A1] bounded sanity  Init/Next |= IndInv (length 12): OK
 
 ### [A2] inductive BASE   Init => IndInv (length 0)
-The outcome is: NoError                                           I@23:36:01.119
-Checker reports no error up to computation length 0               I@23:36:01.119
+The outcome is: NoError                                           I@12:18:17.822
+Checker reports no error up to computation length 0               I@12:18:17.822
 >>> [A2] inductive BASE   Init => IndInv (length 0): OK
 
 ### [A3] inductive STEP   IndInv /\ Next => IndInv' (length 1)
-The outcome is: NoError                                           I@23:36:02.311
-Checker reports no error up to computation length 1               I@23:36:02.312
+The outcome is: NoError                                           I@12:18:20.267
+Checker reports no error up to computation length 1               I@12:18:20.267
 >>> [A3] inductive STEP   IndInv /\ Next => IndInv' (length 1): OK
 
 ### [A4] IMPLICATION      IndInv => NoDoubleSpend (length 0)
-The outcome is: NoError                                           I@23:36:03.447
-Checker reports no error up to computation length 0               I@23:36:03.448
+The outcome is: NoError                                           I@12:18:22.564
+Checker reports no error up to computation length 0               I@12:18:22.564
 >>> [A4] IMPLICATION      IndInv => NoDoubleSpend (length 0): OK
 
 ==================================================================
@@ -166,33 +220,64 @@ LAYER B -- full on-chain model (this phase)
 >>> [B0] typecheck       property.tla (EXTENDS Onchain): OK
 
 ### [B1] bounded SAFETY   OnInit/OnNext |= INV (length 6)
-The outcome is: NoError                                           I@23:36:06.400
-Checker reports no error up to computation length 6               I@23:36:06.400
+The outcome is: NoError                                           I@12:18:31.481
+Checker reports no error up to computation length 6               I@12:18:31.481
 >>> [B1] bounded SAFETY   OnInit/OnNext |= INV (length 6): OK
 
 ### [B2] inductive BASE   OnInit => IndInv_P2 (length 0)
-The outcome is: NoError                                           I@23:36:08.266
-Checker reports no error up to computation length 0               I@23:36:08.266
+The outcome is: NoError                                           I@12:18:35.948
+Checker reports no error up to computation length 0               I@12:18:35.948
 >>> [B2] inductive BASE   OnInit => IndInv_P2 (length 0): OK
 
 ### [B3] inductive STEP   IndInv_P2 /\ OnNext => IndInv_P2' (len 1)
-The outcome is: NoError                                           I@23:36:10.832
-Checker reports no error up to computation length 1               I@23:36:10.832
+The outcome is: NoError                                           I@12:18:41.954
+Checker reports no error up to computation length 1               I@12:18:41.955
 >>> [B3] inductive STEP   IndInv_P2 /\ OnNext => IndInv_P2' (len 1): OK
 
 ### [B4] IMPLICATION      IndInv_P2 => INV (length 0)
-The outcome is: NoError                                           I@23:36:12.533
-Checker reports no error up to computation length 0               I@23:36:12.534
+The outcome is: NoError                                           I@12:18:45.997
+Checker reports no error up to computation length 0               I@12:18:45.997
 >>> [B4] IMPLICATION      IndInv_P2 => INV (length 0): OK
 
 ### [B5] continuity (admit/confirm fragment) |= INV_Continuity (len 6)
-The outcome is: NoError                                           I@23:36:14.548
-Checker reports no error up to computation length 6               I@23:36:14.548
+The outcome is: NoError                                           I@12:18:50.782
+Checker reports no error up to computation length 6               I@12:18:50.782
 >>> [B5] continuity (admit/confirm fragment) |= INV_Continuity (len 6): OK
 
 ==================================================================
-RESULT: 10 check(s) passed, 0 unexpected.
+LAYER C -- member_root ORDER-binding (spec-v1.1 / docs#47, unbounded)
+==================================================================
+### [C1] bounded sanity  Init/Next |= IndInv (length 4)
+The outcome is: NoError                                           I@12:18:54.140
+Checker reports no error up to computation length 4               I@12:18:54.140
+>>> [C1] bounded sanity  Init/Next |= IndInv (length 4): OK
+
+### [C2] inductive BASE   Init => IndInv (length 0)
+The outcome is: NoError                                           I@12:18:56.869
+Checker reports no error up to computation length 0               I@12:18:56.870
+>>> [C2] inductive BASE   Init => IndInv (length 0): OK
+
+### [C3] inductive STEP   IndInv /\ Next => IndInv' (length 1)
+The outcome is: NoError                                           I@12:19:00.373
+Checker reports no error up to computation length 1               I@12:19:00.373
+>>> [C3] inductive STEP   IndInv /\ Next => IndInv' (length 1): OK
+
+### [C4] IMPLICATION      IndInv => LocatorBindsOrder (length 0)
+The outcome is: NoError                                           I@12:19:03.881
+Checker reports no error up to computation length 0               I@12:19:03.881
+>>> [C4] IMPLICATION      IndInv => LocatorBindsOrder (length 0): OK
+
+### [C5] VACUITY probe    NoSharedRoot reachable (antecedent populated)
+State 2: state invariant 0 violated.                              I@12:19:06.579
+The outcome is: Error                                             I@12:19:06.583
+>>> [C5] VACUITY probe    NoSharedRoot reachable (antecedent populated): OK (counterexample found, as required)
+
+==================================================================
+RESULT: 15 check(s) passed, 0 unexpected.
 P02 NoDoubleSpend: VERIFIED.
   Layer A (abstract):    unbounded   [A2]+[A3]+[A4]
   Layer B (full Onchain): unbounded no-double-spend [B2]+[B3]+[B4];
                           bounded safety [B1] + fragment continuity [B5].
+  Layer C (member_root):  unbounded order-binding [C2]+[C3]+[C4];
+                          bounded sanity [C1] + vacuity probe [C5]
+                          (negative control recorded in notes.md).

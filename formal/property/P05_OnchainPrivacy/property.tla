@@ -13,7 +13,7 @@
 (* the axioms then compose with to deliver unlinkability.                   *)
 (*                                                                         *)
 (* This module EXTENDS the full-fidelity on-chain state machine             *)
-(* module/Onchain.tla (Spec Sec. 3, post-docs#40 baseline b6972b8), the     *)
+(* module/Onchain.tla (Spec Sec. 3, spec-v1.1 baseline ed7fdece), the       *)
 (* SAME machine P02 No-Double-Spend is proven over. P05 reuses it unchanged  *)
 (* and reasons about the CHAIN-OBSERVABLE PROJECTION of each admitted batch. *)
 (*                                                                         *)

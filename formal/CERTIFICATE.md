@@ -1,6 +1,6 @@
 # zkCoins 100% Logical Verification — Certificate of Completion
 
-**Spec baseline:** [`zk-coins/docs@b6972b8`](https://github.com/zk-coins/docs/commit/b6972b8) — `develop` tip including the merged [`docs#40`](https://github.com/zk-coins/docs/pull/40) Variant-2 on-chain redesign.
+**Spec baseline:** [`zk-coins/docs@ed7fdece`](https://github.com/zk-coins/docs/commit/ed7fdece) (spec-v1.1) — `develop` tip = the spec-v1.0 baseline [`b6972b8`](https://github.com/zk-coins/docs/commit/b6972b8) plus [`docs#46`](https://github.com/zk-coins/docs/pull/46) (deployment topology, verification-neutral), [`docs#47`](https://github.com/zk-coins/docs/pull/47) (member_root locator, binary `C_batch`, the §3.8 fee-coin, §4.2.1 ZBE) and [`docs#48`](https://github.com/zk-coins/docs/pull/48) (no specification.md change). Every P01–P10 verdict is re-confirmed against this baseline (diff-confirm: the models abstract exactly the things #47 concretized), and three new load-bearing invariants for the #47 guarantees are added (P02 member_root order-binding, P03 fee-atomicity, P08 ZBE anti-truncation).
 **Tool (pinned):** Apalache 0.58.0 (build 711dce6), Z3 4.14.1.0 (bundled), Temurin OpenJDK 17.
 **Host class:** Apple Silicon (arm64), macOS (Darwin 25.5.0).
 **Dates:** 2026-06-06 — 2026-06-07.
@@ -49,6 +49,30 @@ pre-`docs#40` on-chain mechanism (raw nullifiers + scanner first-spend-wins);
 `docs#40` relocated that obligation into the publisher's `AggregateBatchProof`
 and shrank the on-chain surface. The claims are unchanged or strengthened; the
 per-property `notes.md` carry the wording-delta paragraphs.
+
+## spec-v1.1 (docs#46/#47/#48) re-verification — diff-confirm + three new invariants
+
+The baseline advanced from `b6972b8` (spec-v1.0) to `ed7fdece` (spec-v1.1) via
+`docs#46` (deployment topology, verification-neutral — at most a one-line A13
+trust-trade-off note in P06), `docs#47` (member_root locator, binary `C_batch`,
+the §3.8 fee-coin, §4.2.1 ZBE), and `docs#48` (no specification.md change). A
+clause-by-clause analysis confirmed every P01–P10 verdict **stays valid** — the
+TLA+ models abstract exactly what `docs#47` concretized (`bundle_locator` is an
+opaque injective `Int` tag; roots are sets under A16; encryption is "who holds the
+key" under A8–A11; digests are structured collision-free values). So all existing
+checks are **diff-confirm**, not re-modelling; the per-property `notes.md` carry the
+spec-v1.1 wording-delta paragraphs.
+
+`docs#47` introduces **three genuinely new guarantees** that were previously only
+hand-argued and are now load-bearing, **unbounded-inductive** machine-checked
+invariants — each with a vacuity probe and a runnable negative control that
+produces an Apalache counterexample when the load-bearing clause is removed:
+
+| New invariant | File | Claim | Negative control |
+|---|---|---|---|
+| P2 member_root ORDER-binding | [`P02_NoDoubleSpend/member_root.tla`](./property/P02_NoDoubleSpend/member_root.tla) | the locator's `member_root` binds the member SET **and** their ORDER (no reorder / set-swap under one proof) | order-insensitive set-hash `member_root` → two permutations share a locator but differ as sequences (Error) |
+| P3 fee-coin ATOMICITY | [`P03_BalanceConservation/fee_atomicity.tla`](./property/P03_BalanceConservation/fee_atomicity.tla) | the §3.8 fee coin and the recipient payment under the single `ocr` are admitted all-or-none; a never-anchored fee is never spendable | decouple the fee from the payment's `ocr` → fee collected while payment not anchored (Error) |
+| P8 ZBE anti-truncation | [`P08_TransportConfAuth/zbe.tla`](./property/P08_TransportConfAuth/zbe.tla) | a truncated / extended / reordered chunk sequence is rejected; accepted ⇒ plaintext = sealed | drop the per-chunk `(N,i)` AAD binding → a duplicated/reordered sequence authenticates (Error) |
 
 ## What "verified" means here — and what it does not
 

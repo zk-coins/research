@@ -1,7 +1,8 @@
 -------------------------- MODULE Onchain --------------------------
 (***************************************************************************)
 (* Onchain -- the FULL-FIDELITY on-chain layer of zkCoins (Spec Sec. 3,      *)
-(* post-docs#40 baseline b6972b8). This is the concrete BatchInscription     *)
+(* baseline docs@ed7fdece, spec-v1.1 = b6972b8 + docs#46/#47/#48). This is    *)
+(* the concrete BatchInscription                                            *)
 (* state machine that the abstract accumulator model in                     *)
 (* property/P02_NoDoubleSpend/property.tla stands in for: where P02 carries  *)
 (* only onPending/onCompleted/onDoubled sets of opaque nullifiers, this module     *)
@@ -133,9 +134,23 @@ Acc == onPending \union onCompleted
 \* distinct tags by construction (A3/A5). We fold the structured fields into a
 \* single Int tag via an injective-by-construction record handle and reuse
 \* SigValid's <<pk, msgTag>> shape: the msgTag is the bundle_locator, which
-\* §3.5 binds 1:1 to (prev_root,new_root,block_anchor) inside batch_message
-\* (the locator is itself Hc over the bundle that fixes those roots), so equal
+\* §3.5/§3.6 binds 1:1 to the bundle binding inside batch_message, so equal
 \* locators imply equal messages and SigValid keys on the locator faithfully.
+\*
+\* POST-#47 LOCATOR FORM (docs#47, §3.5/§3.6). The bundle_locator is now
+\*   Hc("BatchBundle", prev_root || new_root || u32-be(m) || member_root)
+\* (previously Hc("BatchBundle", serialize(BatchBundle))), where member_root is
+\* a binary Poseidon hash tree over the ORDERED member SpendRecords (leaf
+\* Hc("BatchMember", serialize(SpendRecord_j)), node Hc("BatchMember/Node",
+\* left, right), padding leaf Hc("BatchMember", emptyset)). So the locator now
+\* binds, in addition to the two roots, BOTH the exact member SET and their
+\* ORDER (the scanner recomputes member_root from the ordered records and
+\* rejects a mismatch, §3.6 step 6). The MODEL is unchanged: bundleLocator is
+\* still an opaque injective Int tag, and the order/set binding the new preimage
+\* gives is the load-bearing fact now machine-checked separately in
+\* property/P02_NoDoubleSpend/member_root.tla (a digest IS its structured
+\* preimage, A3/A16). Equal locators still imply equal bundle bindings, which is
+\* all BatchMsgTag relies on, so this comment is a fidelity refresh only.
 \* @type: ($batchInscription) => Int;
 BatchMsgTag(b) == b.bundleLocator
 

@@ -17,7 +17,7 @@ Result        : P10 = NoReleaseWithoutCapability + ScopeRespected
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
 Date          : 2026-06-07
-Spec baseline : zk-coins/docs@b6972b8 (Sec. 5.1/5.2/5.3/5.4/5.5/5.8)
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1; Sec. 5.1/5.2/5.3/5.4/5.5/5.8)
 Model         : property.tla (module `property`, EXTENDS module/Access.tla)
 Runner        : ./verify.sh
 

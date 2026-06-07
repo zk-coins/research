@@ -26,7 +26,7 @@
 (*           copy + K_tx before both a valid ACK and k independent replicas  *)
 (*           are confirmed (Transport.TrSenderRetainsUntilSafe).            *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline docs@b6972b8, post-docs#40):     *)
+(* GROUNDED IN THE SPECIFICATION (baseline docs@ed7fdece, spec-v1.1):       *)
 (*   - Sec. 4.1 -- the transport (op key, node-as-relay) is trusted only    *)
 (*     for availability and metadata minimisation, never for correctness: a  *)
 (*     relay can withhold a bundle but can neither forge nor alter one.      *)

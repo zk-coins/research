@@ -27,7 +27,7 @@
 (* "no inflation of others' assets" (Sec. 6.6 capability table, row 3), NOT  *)
 (* a supply ceiling -- there is none by design.                            *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline docs@b6972b8):                  *)
+(* GROUNDED IN THE SPECIFICATION (baseline docs@ed7fdece, spec-v1.1):      *)
 (*   - Sec. 2.1 clause 3 -- "Per-asset balance conservation": for every     *)
 (*     asset a appearing in inputs or outputs, In(a) + Mint(a) >= Out(a);   *)
 (*     amounts range-checked so no sum wraps the field; the difference is    *)

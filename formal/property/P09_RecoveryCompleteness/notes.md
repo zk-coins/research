@@ -39,7 +39,7 @@ and the `ConstInit` alias.
   factor `k`, default 3, MUST NOT be < 2, on **independent** operators; the
   normative safety invariant "Custody safety **MUST NOT** depend on
   availability. … Availability is a liveness property, never a safety
-  property"). Baseline `docs@b6972b8` (post-`docs#40`).
+  property"). Baseline `docs@ed7fdece` (spec-v1.1 = `b6972b8` + `docs#46`/`#47`/`#48`).
 
 - **Pass-3 §P9 statement (the oracle), quoted verbatim:**
   > **Statement.** From seed + Bitcoin + the §4.6 replicated bundles, a wallet
@@ -284,9 +284,10 @@ Apalache 0.58.0's fairness support — the MEDIUM caveat Pass-3 records. Full
 reconciliation across all properties is deferred to Phase 4.
 
 **Oracle/baseline provenance.** The Pass-3 P9 prose was written against the
-develop snapshot; the baseline here (`b6972b8`) carries the same Sec. 4.5/4.6
-recovery + replication design (the self-delivery rule of §4.2 that step 5 relies
-on is present). The *claim* (correctness from chain + verifying primitives,
+develop snapshot; the baseline here (`ed7fdece`, spec-v1.1) carries the same
+Sec. 4.5/4.6 recovery + replication design (the self-delivery rule of §4.2 that
+step 5 relies on is present; `docs#47` ZBE re-frames only how the blob is sealed,
+not the recovery/replication flow). The *claim* (correctness from chain + verifying primitives,
 availability from replication) is unchanged, so the audit remains a valid
 oracle.
 

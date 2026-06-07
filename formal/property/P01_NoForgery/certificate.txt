@@ -23,7 +23,7 @@ Result        : VERIFIED, two-tier --
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
 Date          : 2026-06-07
-Spec baseline : zk-coins/docs@b6972b8 (post-docs#40; Proofs Sec. 2.1 clauses 2/5/7,
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1; Proofs Sec. 2.1 clauses 2/5/7,
                 Foundations Sec. 1.4; On-chain Sec. 2.4 / 3.6 cited for composition)
 Model         : property.tla  (module `property`, EXTENDS module/Proofs.tla)
 Runner        : ./verify.sh  (stages Foundations+Assumptions+Proofs alongside)

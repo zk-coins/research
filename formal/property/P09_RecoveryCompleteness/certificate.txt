@@ -42,7 +42,7 @@ Claim         : Two halves, graded to mirror the Pass-3 audit split.
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
 Date          : 2026-06-07
-Spec baseline : zk-coins/docs@b6972b8 (post-docs#40; Sec. 4.5, Sec. 4.6)
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1; Sec. 4.5, Sec. 4.6)
 Model         : property.tla (module `property`) EXTENDS module/Transport.tla
                 (which EXTENDS Foundations, Assumptions)
 Runner        : ./verify.sh

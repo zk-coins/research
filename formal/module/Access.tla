@@ -1,7 +1,8 @@
 -------------------------- MODULE Access --------------------------
 (***************************************************************************)
 (* Access -- the CAPABILITY-GATED PULL ENDPOINT of Sec. 5 (Access &         *)
-(* Explorer) at docs@b6972b8. This module models, as a state machine, the   *)
+(* Explorer) at docs@ed7fdece (spec-v1.1). This module models, as a state   *)
+(* machine, the                                                            *)
 (* one endpoint through which a node releases Private data, and the release  *)
 (* predicate that governs it.                                              *)
 (*                                                                         *)

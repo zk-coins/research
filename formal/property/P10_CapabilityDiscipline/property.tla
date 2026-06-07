@@ -15,7 +15,7 @@
 (*    GrantProof cannot be replayed against a different node; revoked/       *)
 (*    expired grants release nothing."                                      *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline zk-coins/docs@b6972b8):          *)
+(* GROUNDED IN THE SPECIFICATION (baseline zk-coins/docs@ed7fdece v1.1):    *)
 (*   - Sec. 5.1 (capability-gated pull): exactly two authorisations         *)
 (*     (ownership proof, view grant); challenge->proof with server-issued   *)
 (*     nonce + expiry, consumed-once; chan_bind binds the proof to the host *)

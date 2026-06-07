@@ -6,7 +6,7 @@
 (* Initiative. Where the Phase-0 companion `abstract.tla` carries only the   *)
 (* three opaque nullifier sets (pending/completed/doubled), THIS module     *)
 (* EXTENDS the full-fidelity on-chain state machine `module/Onchain.tla`     *)
-(* (Spec Sec. 3, post-docs#40 baseline b6972b8) and proves the same safety   *)
+(* (Spec Sec. 3, spec-v1.1 baseline ed7fdece) and proves the same safety     *)
 (* claim over the CONCRETE BatchInscription machine: the publisher signature *)
 (* oracle (A7), the half-aggregation obligation (A15), prev_root continuity  *)
 (* (Sec. 3.4 / 3.6 step 4), block_anchor admissibility (Sec. 3.5), the       *)

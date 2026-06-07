@@ -39,7 +39,7 @@
 (*   Game: A wins if there exists a coin c that an honest receiver credits,   *)
 (*   but c was NOT produced by a valid Sec. 2.1 transition.                   *)
 (*                                                                         *)
-(* GROUNDED IN THE SPECIFICATION (baseline docs@b6972b8, post-docs#40):     *)
+(* GROUNDED IN THE SPECIFICATION (baseline docs@ed7fdece, spec-v1.1):       *)
 (*   - Foundations Sec. 1.4 -- coin.identifier = Hc("Coin",                    *)
 (*     prev_account_state_hash || asset_id || coin_index): the coin id         *)
 (*     STRUCTURALLY EMBEDS its creating prior account state (MkCoinId's        *)

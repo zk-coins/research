@@ -37,7 +37,7 @@ Quoted from the Pass-3 audit (`audit/2026-06-06.03.md`, branch
 >
 > **Verdict.** Sound under A1, A3, A6, A7. **Confidence: HIGH** for v1.
 
-## Spec sections formalised (baseline docs@b6972b8, post-docs#40)
+## Spec sections formalised (baseline docs@ed7fdece, spec-v1.1)
 
 - **Architecture §6.5** — v1 issuance terms and the mint clauses (a)–(d):
   `issuance_version == 1` (a); `H(creator_pubkey) == prev_account_state.owner`

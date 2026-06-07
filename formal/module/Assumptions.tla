@@ -81,6 +81,15 @@ SigValid(authorised, pk, msgTag) ==
 (* capability test; the relay/eavesdropper holds none, so learns nothing     *)
 (* beyond the public envelope.                                               *)
 (*   Used by: P4, P8.                                                        *)
+(*                                                                         *)
+(* POST-#47: the bundle blob is now sealed with ZBE (zkCoins Bundle          *)
+(* Encryption, docs#47 §4.2.1) -- chunked ChaCha20-Poly1305 with per-chunk    *)
+(* AAD "zkCoins/v1/Blob" || u32_be(N) || u32_be(i). It is a thin chunked     *)
+(* framing over the SAME AEAD primitive, so it REDUCES to A10 (IND-CCA): the  *)
+(* CanDecrypt abstraction below is unchanged (who holds K_tx still decides    *)
+(* readability). The new per-chunk (N,i) AAD integrity binding -- reject any  *)
+(* truncated/extended/reordered chunk sequence, no partial accept -- is the   *)
+(* anti-truncation layer checked in P08's zbe.tla, not a change to A10.       *)
 (***************************************************************************)
 
 \* CanDecrypt: the holder set of a per-object key includes `who` iff `who`
@@ -124,6 +133,12 @@ ChanBindMatches(presentedHost, servingHost) == presentedHost = servingHost
 (* bound coefficients rule out rogue-key cancellation; conditional on A7).   *)
 (* Post-docs#40 this lives inside the AggregateBatchProof witness, but the   *)
 (* logical content is unchanged: AggValid <=> all members valid.             *)
+(* POST-#47: docs#47 makes C_batch an explicit BINARY recursive aggregator   *)
+(* (arity 2) with public inputs (prev_root, new_root, m, member_root); the   *)
+(* half-aggregation obligation now folds up that binary tree, but the        *)
+(* LOGICAL content A15 captures is still exactly AggValid <=> all members    *)
+(* valid (AggSoundValid below quantifies over all member validities          *)
+(* irrespective of the fold shape), so the oracle is unchanged.              *)
 (*   Used by: P1, P2.                                                        *)
 (***************************************************************************)
 

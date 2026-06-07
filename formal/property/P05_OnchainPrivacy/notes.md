@@ -87,7 +87,7 @@ key (`PublisherOnlyLink`).
   individual nullifier"), Sec. 3.5 (inscription byte layout + metadata note —
   record count hidden on-chain, `k_j` bundle-only, "the publisher identity is the
   only on-chain link"), Sec. 1.2/1.4 (rotating per-transition Pk_i; account
-  address = H(Pk0); nf unlinkability). Baseline `docs@b6972b8` (post-`docs#40`).
+  address = H(Pk0); nf unlinkability). Baseline `docs@ed7fdece` (spec-v1.1 = `b6972b8` + `docs#46`/`#47`/`#48`).
 
 - **Pass-3 §P5 statement (the oracle), quoted verbatim:**
   > **Statement.** A passive observer of Bitcoin learns from a `SpendRecord` only:
@@ -129,6 +129,21 @@ on-chain link this package machine-checks via `PublisherOnlyLink`. So the
 HIGH on-chain bound Pass-3 records is not merely confirmed; the post-#40 chain
 surface is **strictly narrower** than the one Pass-3 graded HIGH, and the only new
 on-chain identity is proven categorically disjoint from every account identity.
+
+## spec-v1.1 (docs#47) delta — verdict unchanged/strengthened (diff-confirm)
+
+The spec-v1.1 baseline (`docs@ed7fdece`) changed the `bundle_locator` preimage
+from `Hc("BatchBundle", serialize(BatchBundle))` to
+`Hc("BatchBundle", prev_root ‖ new_root ‖ u32-be(m) ‖ member_root)` (docs#47). **P5
+is unchanged/strengthened:** the on-chain footprint is still a single opaque
+32-byte locator carried in `ChainView` as an opaque scalar (preimage-bound under
+A3); the new `member_root` and its ORDERED member preimage live **off-chain**
+inside the `BatchBundle`, so a chain-only observer learns nothing new. `docs#46`
+(deployment topology, optional external bitcoind/relay as a documented A13 trust
+trade-off) is verification-neutral. The order-binding the new preimage gives is an
+**integrity** property machine-checked in `property/P02_NoDoubleSpend/member_root.tla`,
+not a privacy leak — it constrains what a publisher can do under one proof, not
+what an observer can read. All six `verify.sh` privacy checks re-confirm verbatim.
 
 ## INV / IndInv design and the Seq-variable scope (same as P02)
 
@@ -258,10 +273,14 @@ operational hygiene, exactly as Pass-3 and the spec state. Full reconciliation
 across all properties is deferred to Phase 4.
 
 **Oracle/baseline provenance.** The Pass-3 P5 prose was written against a pre-#40
-snapshot; the baseline here (`b6972b8`) is post-#40. The *claim* (on-chain hides
-amount/asset/parties/graph; unlinkability rests on A3/BIP-32-PRF/A2) is unchanged
-and, on the post-#40 surface, strictly stronger — so the audit remains a valid
-oracle, with the delta paragraph above as the explicit reconciliation note.
+snapshot; the baseline here (`ed7fdece`, spec-v1.1) is post-#40 and post-#47. The
+*claim* (on-chain hides amount/asset/parties/graph; unlinkability rests on
+A3/BIP-32-PRF/A2) is unchanged and, on the post-#40 surface, strictly stronger —
+so the audit remains a valid oracle, with the delta paragraph above as the
+explicit reconciliation note. `docs#47` keeps the on-chain footprint a single
+opaque 32-byte `bundle_locator`; its new preimage (member_root over the ordered
+members) lives off-chain, so a chain observer still sees only the opaque locator
+and the privacy verdict is unchanged/strengthened (see Modelling decisions).
 
 ## Scope / what is deliberately NOT modelled
 
@@ -273,10 +292,18 @@ oracle, with the delta paragraph above as the explicit reconciliation note.
   NIP-44/NIP-59 cross-protocol fingerprinting §4.7; relay choice; Tor; long-run
   intersection attacks against small anonymity sets) — Pass-3 MEDIUM, operational,
   out of scope.
-- **The `bundle_locator` content-address linkage analysis** — the locator is
-  `Hc("BatchBundle", serialize(BatchBundle))`, preimage-bound under A3; it is
-  carried in `ChainView` as an opaque scalar and is not asserted to leak or hide
-  beyond what A3 gives (it is the digest, not its preimage).
+- **The `bundle_locator` content-address linkage analysis** — post-`docs#47` the
+  locator is `Hc("BatchBundle", prev_root ‖ new_root ‖ u32-be(m) ‖ member_root)`
+  (previously `Hc("BatchBundle", serialize(BatchBundle))`), where `member_root` is
+  a binary Poseidon tree over the ordered members. It is preimage-bound under A3;
+  it is carried in `ChainView` as an opaque scalar and is not asserted to leak or
+  hide beyond what A3 gives (it is the digest, not its preimage). An on-chain
+  observer still sees only the opaque 32-byte locator — the member_root and its
+  ordered preimage live off-chain inside the `BatchBundle` — so the privacy
+  verdict is unchanged/strengthened. (The order-binding the new preimage gives is
+  the load-bearing fact checked, separately, in
+  `property/P02_NoDoubleSpend/member_root.tla`, an integrity property, not a
+  privacy leak.)
 - **The off-chain bundle layer** (SpendRecord/k_j/AggregateBatchProof confidentiality
   toward authorised vs unauthorised bundle readers) is a transport/access concern
   (P06 client-side validation, P08 transport conf/auth, P10 capability discipline),

@@ -23,7 +23,7 @@ Result        : VERIFIED (UNBOUNDED, inductive) over the COMPOSED machine
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
 Date          : 2026-06-07
-Spec baseline : zk-coins/docs@b6972b8 (post-docs#40; receive §2.3.3, lifecycle
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1; receive §2.3.3, lifecycle
                 §3.10, accumulator §3.7, finality §3.9)
 Model         : property.tla  (module `property`, EXTENDS module/Onchain.tla)
 Runner        : ./verify.sh   (stages Foundations+Assumptions+Onchain alongside

@@ -1,7 +1,7 @@
 -------------------------- MODULE Architecture --------------------------
 (***************************************************************************)
 (* Architecture -- the multi-node operation and latest-state selection      *)
-(* state machine (spec Sec. 6.3 / 6.6 at docs@b6972b8).                     *)
+(* state machine (spec Sec. 6.3 / 6.6 at docs@ed7fdece, spec-v1.1).         *)
 (*                                                                         *)
 (* THE CLAIMS modelled here (Requirement 4 + Requirement 10):              *)
 (*  - "At least one honest node" correctness (Sec. 6.3, Sec. 6.6 bullet 2):*)

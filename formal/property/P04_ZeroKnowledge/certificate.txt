@@ -26,7 +26,7 @@ Result        : P4: VERIFIED (composition-level FLOW/CONTAINMENT, dynamic half,
 Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
 Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
 Date          : 2026-06-07
-Spec baseline : zk-coins/docs@b6972b8 (Sec. 2.1 cl. 9, Sec. 3.5, Sec. 4.2)
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1; Sec. 2.1 cl. 9, Sec. 3.5, Sec. 4.2)
 Model         : property.tla (module `property`, EXTENDS module/Proofs.tla)
 Runner        : ./verify.sh
 
