@@ -1,7 +1,9 @@
 # Benchmarks (archived from `zk-coins/node`)
 
-Benchmark write-ups produced during the **Plonky3 recursion spike** (PR
-[#214](https://github.com/zk-coins/node/pull/214)). They previously lived under
+Benchmark write-ups produced during the **Plonky3 recursion spike** (PRs
+[#212](https://github.com/zk-coins/node/pull/212) and
+[#214](https://github.com/zk-coins/node/pull/214): `plonky3-spike-*.md` landed in #212, the
+other four in #214). They previously lived under
 `scripts/bench/results/` on the `staging` branch of
 [`zk-coins/node`](https://github.com/zk-coins/node) and were moved here on **2026-06-07**
 so the node repo carries no Plonky3-migration research artifacts. Archived **verbatim**.

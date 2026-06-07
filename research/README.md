@@ -26,7 +26,7 @@ research/
 ├── zkcoins-design/                # Design drafts archived from zk-coins/node (see its README)
 ├── benchmarks/                    # Plonky3 spike benchmark results archived from zk-coins/node
 ├── spikes/                        # Throwaway research crates
-│   └── plonky3-recursion-spike/   # Plonky3 recursion feasibility spike (from node staging, PR #214)
+│   └── plonky3-recursion-spike/   # Plonky3 recursion feasibility spike (from node staging, PRs #212/#214)
 ├── community-content/             # Community/research pages archived from zk-coins/docs
 └── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
 ```

@@ -18,7 +18,11 @@ was rewritten.
 | `MULTI_ASSET.md` | `MULTI_ASSET.md` (develop) | Multi-asset extension design |
 | `SPEC.md` | `SPEC.md` (develop) | zkCoins **circuit / single-asset** spec — the implementation-level spec the design drafts reference. Distinct from the public protocol spec (see below). |
 | `program-plonky2-sessions/` | `program-plonky2/SESSION_STATE.md`, `STAGE_5D_NEXT_4_DESIGN.md`, `STEP4_REVIEW.md`, `STEP7_PREP.md` (develop) | Per-step migration session notes |
-| `plonky3-migration/` | `MIGRATION_PLONKY3*.md` + `docs/migration/PLONKY3_*.md` (staging, PR #214) | Plonky3 migration plan, audit, cutover playbook |
+| `plonky3-migration/` | `MIGRATION_PLONKY3*.md` + `docs/migration/PLONKY3_*.md` (staging, PRs [#211](https://github.com/zk-coins/node/pull/211) / [#212](https://github.com/zk-coins/node/pull/212) / [#214](https://github.com/zk-coins/node/pull/214)) | Plonky3 migration plan, audit, cutover playbook |
+
+> Path note: the node subdirectory `docs/migration/` was imported as
+> `plonky3-migration/docs-migration/` (flattened to avoid a misleading top-level `docs/`
+> here). File contents are untouched.
 
 ## Relocated cross-references
 
