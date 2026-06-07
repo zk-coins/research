@@ -1,0 +1,225 @@
+================================================================================
+zkCoins 100% Logical Verification Initiative
+CERTIFICATE -- P06 Client-Side Validation (no third-party trust)
+================================================================================
+
+Property      : P06 Client-Side Validation.
+Claim         : A receiver crediting a coin depends only on (a) the Bitcoin
+                chain it itself reads, (b) the bundle it received, (c) its own
+                derivable keys. No node, courier, sender, or third party can
+                cause an honest receiver -- running the receive checks of
+                Spec §2.3.3 steps 2-6 -- to credit a coin that is not produced
+                by a valid transition admitted on Bitcoin. (Pass-3 audit P6,
+                HIGH.)
+Result        : VERIFIED (UNBOUNDED, inductive) over the COMPOSED machine
+                P6Next == OnNext \/ Receive \/ AdversaryOffer.
+                The §2.3.3 receive decision rule is built as a receiver layer
+                ON TOP OF the full-fidelity on-chain machine module/Onchain.tla;
+                INV_P6 (every credited coin satisfies the proof / anchor /
+                non-membership checks at credit time, backed by the receiver's
+                OWN chain view) holds in every reachable state, for an arbitrary
+                number of admit/confirm/reorg/offer/receive transitions.
+
+Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
+Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
+Date          : 2026-06-07
+Spec baseline : zk-coins/docs@b6972b8 (post-docs#40; receive §2.3.3, lifecycle
+                §3.10, accumulator §3.7, finality §3.9)
+Model         : property.tla  (module `property`, EXTENDS module/Onchain.tla)
+Runner        : ./verify.sh   (stages Foundations+Assumptions+Onchain alongside
+                property.tla in a scratch dir, same pattern as P02/P08)
+
+--------------------------------------------------------------------------------
+WHAT IS PROVEN -- the composition property
+--------------------------------------------------------------------------------
+The shared modules deliberately have NO Receive action: receive-side credit is a
+CLIENT decision (§2.3.3), not an on-chain transition (module/Onchain.tla states
+the receive-side classification is "modelled in the receive properties"). P06 is
+that property. It EXTENDS Onchain -- so the receiver reads the REAL
+onPending/onCompleted/Acc the on-chain machine maintains -- and adds:
+
+  - VARIABLE credited : the receiver's credited coins, each a GHOST record
+      { cnf, anchorNfs, proofAttests, anchorCompleted, nfWasNonMember }
+      capturing the coin and the genuine facts the gate evaluated at credit time.
+  - VARIABLE offered  : the adversary's offer pool of arbitrary candidate
+      bundles (any nf, any claimed creating-batch, any claimed proof bit).
+
+  - ACTION AdversaryOffer : the UNCHECKED adversarial-delivery action. A
+      malicious node/courier/sender offers an arbitrary (forged / unanchored /
+      already-spent) candidate into `offered`. It NEVER credits and NEVER
+      touches the chain -- offering junk cannot move `credited`.
+  - ACTION Receive : the §2.3.3 gate. It takes a candidate from `offered`
+      (adversary-CHOSEN, untrusted) and credits it ONLY IF all three
+      load-bearing checks pass against the receiver's OWN chain view:
+        step 2  Step2_ProofVerifies  -- proof accepts => statement holds
+                                        (A1 KnowledgeSound; no forged acceptance
+                                        of a false statement);
+        step 4  Step4_AnchorCompleted -- anchorNfs # {} /\ anchorNfs \subseteq
+                                        onCompleted: the creating batch is
+                                        admitted AND >= 6 conf (§3.10 completed);
+                                        a batch only in onPending FAILS;
+        step 5  Step5_NfNonMember    -- cnf \notin Acc (= onPending \cup
+                                        onCompleted): the coin's own nullifier
+                                        is unspent at the live tip (§3.7).
+      Steps 3 (inclusion in ocr) and 6 (amount/asset sanity) are local
+      in-receiver self-checks (Pass-3: "local checks"); step 3 is folded into
+      the step-2 statement and step 6 is a self-check on the receiver's own
+      address, so neither admits third-party influence.
+
+INV_P6 (the safety property):
+  CreditedChecksHeld  -- every credited entry's three bits are TRUE; and
+  CreditedAnchored    -- every credited entry's anchorNfs is a non-empty subset
+                         of onCompleted (the load-bearing anti-vacuity conjunct
+                         tying the ghost to the receiver's real chain view).
+A credit can therefore exist ONLY if a valid, on-Bitcoin-admitted, finalised,
+unspent transition backed it.
+
+--------------------------------------------------------------------------------
+"UNBOUNDED" -- inductive invariant and the Seq projection (honest scope)
+--------------------------------------------------------------------------------
+The unbounded proof is the conjunction [P2]+[P3]+[P4]:
+  [P2] base   P6Init    => IndInv_P6
+  [P3] step   IndInv_P6 /\ P6Next => IndInv_P6'   (P6Next = OnNext \/ Receive
+                                                   \/ AdversaryOffer)
+  [P4] impl   IndInv_P6 => INV_P6
+
+IndInv_P6 strengthens INV_P6 with the structural type facts of the receiver
+records and the Onchain set variables, plus the disjoint-zones fact
+onPending \cap onCompleted = {} and onDoubled = {} inherited from the on-chain
+machine. It does NOT reference the onAdmittedChain SEQUENCE; the inductive-step
+init (IndInvInit) assigns the chain an arbitrary bounded value via apalache.Gen
+(capacity <= 4), exactly as in the P02 Seq-projection argument. The receiver gate
+reads onCompleted / Acc -- the SET projection the on-chain machine maintains --
+never the chain history, so the Gen capacity bounds only the bookkeeping witness,
+never the safety conclusion. The step is a faithful unbounded statement over the
+composed set-state.
+
+The load-bearing inductive argument is MONOTONICITY of onCompleted. The only
+INV_P6 conjunct an OnNext step could break is CreditedAnchored (it reads
+onCompleted), since OnNext leaves `credited` unchanged. But onCompleted only
+GROWS: Confirm sets onCompleted' = onCompleted \cup M; Admit/PublisherSign leave
+it; Reorg leaves onCompleted UNTOUCHED (§3.10 / A12, `completed` is absolute,
+never reverts under the <= 5-block bound). A subset of onCompleted stays a subset
+of any superset, so e.anchorNfs \subseteq onCompleted is preserved. Receive only
+ADDS an entry whose bits are the gate results (all TRUE) and whose anchorNfs is a
+non-empty subset of onCompleted at that instant; AdversaryOffer leaves `credited`
+and the chain unchanged. Hence IndInv_P6 is inductive under the full P6Next.
+
+--------------------------------------------------------------------------------
+VACUITY GUARD (mandatory) -- credits actually happen
+--------------------------------------------------------------------------------
+[P1] checks CreditsNeverHappen (credited = {}) and EXPECTS A COUNTEREXAMPLE.
+Apalache returns Error (exit 12) at length 6: a credit is genuinely reachable, so
+INV_P6 is not vacuously true on an empty `credited` and the gate is not
+vacuously unsatisfiable. The 6-state witness reaches a credit only after the
+chain populates onCompleted:
+  State0 P6Init                empty
+  State1 PublisherSign         publisher authorises a batch_message
+  State2 Admit  batch={nf}     nf enters onPending (admitted, < 6 conf)
+  State3 Confirm M={nf}        nf crosses 6-conf finality -> onCompleted
+  State4 AdversaryOffer        a candidate {ocnf=nf, oAnchorNfs={nf},
+                               oProofAccepts=TRUE} is offered
+  State5 Receive               all three checks pass against the receiver's own
+                               view -> credited gains one entry; CreditsNeverHappen
+                               violated, as expected.
+
+--------------------------------------------------------------------------------
+NEGATIVE CONTROLS (mandatory) -- each gate check is load-bearing
+--------------------------------------------------------------------------------
+Each control deletes ONE conjunct from the Receive gate (in a scratch copy named
+property.tla so SANY accepts it) and re-checks INV_P6; both yield a
+counterexample (Error, exit 12), confirming the check is load-bearing.
+
+NC-A  Drop the anchor-completed check (`/\ completed`) from the Receive gate.
+      apalache-mc check --cinit=P6ConstInit --init=P6Init --next=P6Next
+                        --inv=INV_P6 --length=6 property.tla   -> Error (exit 12)
+      Counterexample: a credited entry with anchorCompleted |-> FALSE while
+      onCompleted = {} and onPending = {} -- i.e. a coin whose creating batch was
+      NEVER admitted (a pending/unanchored coin) is credited. INV_P6's
+      CreditedChecksHeld / CreditedAnchored fail. (Skolem witness:
+      \E e \in credited: ~(e.anchorCompleted = TRUE).)
+
+NC-B  Drop the proof-verifies check (`/\ attests`) from the Receive gate.
+      apalache-mc check --cinit=P6ConstInit --init=P6Init --next=P6Next
+                        --inv=INV_P6 --length=6 property.tla   -> Error (exit 12)
+      Counterexample: a credited entry with proofAttests |-> FALSE -- a coin
+      whose recursive proof does NOT attest its statement is credited.
+      CreditedChecksHeld fails. (Skolem witness:
+      \E e \in credited: ~(e.proofAttests = TRUE).)
+
+Both scratch copies were discarded; the committed property.tla is unchanged.
+
+--------------------------------------------------------------------------------
+SCOPE (honest)
+--------------------------------------------------------------------------------
+- A13 eclipse is an ASSUMPTION, not a theorem: the receiver's chain view IS the
+  true canonical chain (Assumptions A13 -- the node runs its own bitcoind). The
+  whole property reads onCompleted/Acc as the receiver's own view; an attacker
+  who could rewrite that view (operator-network-level eclipse) is the inherited
+  Bitcoin assumption Pass-3 explicitly records the spec "cannot improve over".
+- Bundle data-availability (transport withhold / replication factor k=3, §4.6)
+  is a LIVENESS concern (P08), not safety, and is out of frame.
+- The `mint-verified` path (non-anchored mints, §3.10) substitutes direct
+  InitialProof re-verification for the anchor check; this property models the
+  anchored receive (steps 2/4/5). The mint path reduces to step 2 alone.
+- module/Onchain.tla was NOT modified; the receiver layer lives entirely in
+  property.tla.
+
+--------------------------------------------------------------------------------
+Commands (exactly as run by verify.sh; staged with Foundations+Assumptions+
+Onchain; P6ConstInit fixes small finite universes)
+--------------------------------------------------------------------------------
+  apalache-mc typecheck property.tla                                                                                       # [P0t]
+  apalache-mc check --cinit=P6ConstInit --init=P6Init     --next=P6Next --inv=INV_P6            --length=6 property.tla    # [P0]  bounded sanity
+  apalache-mc check --cinit=P6ConstInit --init=P6Init     --next=P6Next --inv=CreditsNeverHappen --length=6 property.tla   # [P1]  vacuity guard (expect Error)
+  apalache-mc check --cinit=P6ConstInit --init=P6Init     --next=P6Next --inv=IndInv_P6         --length=0 property.tla    # [P2]  base
+  apalache-mc check --cinit=P6ConstInit --init=IndInvInit --next=P6Next --inv=IndInv_P6         --length=1 property.tla    # [P3]  step
+  apalache-mc check --cinit=P6ConstInit --init=IndInvInit --next=P6Next --inv=INV_P6            --length=0 property.tla    # [P4]  impl
+
+Negative controls (run separately, scratch copies):
+  NC-A: delete `/\ completed` from Receive gate; check INV_P6 length 6  -> Error (exit 12)
+  NC-B: delete `/\ attests`   from Receive gate; check INV_P6 length 6  -> Error (exit 12)
+
+================================================================================
+FULL verify.sh TRANSCRIPT (2026-06-07)
+================================================================================
+Apalache version: 0.58.0
+Instance: P6ConstInit = OnConstInit (Nullifiers = {nf1,nf2,nf3}, Publishers=1..2,
+BundleLocators=1..2); inductive argument uniform in the universe sizes.
+Composed machine: P6Next == OnNext \/ Receive \/ AdversaryOffer.
+
+### [P0t] typecheck     property.tla (EXTENDS Onchain)
+>>> [P0t] typecheck     property.tla (EXTENDS Onchain): OK
+
+### [P0]  bounded SANITY P6Init/P6Next |= INV_P6 (length 6)
+The outcome is: NoError
+Checker reports no error up to computation length 6
+>>> [P0]  bounded SANITY P6Init/P6Next |= INV_P6 (length 6): OK
+
+### [P1]  VACUITY GUARD  credits ARE reachable (CreditsNeverHappen violated, len 6)
+The outcome is: Error
+>>> [P1]  VACUITY GUARD  credits ARE reachable (CreditsNeverHappen violated, len 6): OK (counterexample found, as expected)
+
+### [P2]  inductive BASE  P6Init => IndInv_P6 (length 0)
+The outcome is: NoError
+Checker reports no error up to computation length 0
+>>> [P2]  inductive BASE  P6Init => IndInv_P6 (length 0): OK
+
+### [P3]  inductive STEP  IndInv_P6 /\ P6Next => IndInv_P6' (length 1)
+The outcome is: NoError
+Checker reports no error up to computation length 1
+>>> [P3]  inductive STEP  IndInv_P6 /\ P6Next => IndInv_P6' (length 1): OK
+
+### [P4]  IMPLICATION     IndInv_P6 => INV_P6 (length 0)
+The outcome is: NoError
+Checker reports no error up to computation length 0
+>>> [P4]  IMPLICATION     IndInv_P6 => INV_P6 (length 0): OK
+
+==================================================================
+RESULT: 6 check(s) passed, 0 unexpected.
+P06 Client-Side Validation: VERIFIED (unbounded, inductive).
+  Composed machine OnNext \/ Receive \/ AdversaryOffer:
+  unbounded INV_P6 [P2]+[P3]+[P4]; bounded sanity [P0];
+  reachability vacuity guard [P1] (credits reachable).
+  Negative controls (gate load-bearing) -- see notes.md.
+================================================================================

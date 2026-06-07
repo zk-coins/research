@@ -1,12 +1,12 @@
 # 100% Logical Verification Plan — zkCoins v1 Specification
 
 **Initiated:** 2026-06-06
-**Owner:** project lead, via Claude (AI execution)
-**Spec baseline:** [`zk-coins/docs@a7a9f97`](https://github.com/zk-coins/docs/commit/a7a9f97) — develop tip after F1, F16, F17, F9, F12, and the anchor-polish + profile-preimage-pin merges of 2026-06-06. Subject to advance once [`docs#40`](https://github.com/zk-coins/docs/pull/40) (Variant-2 on-chain redesign) merges; see §Dependencies.
+**Owner:** project lead
+**Spec baseline:** [`zk-coins/docs@b6972b8`](https://github.com/zk-coins/docs/commit/b6972b8) — current `develop` tip, equal to the prior baseline `a7a9f97` plus exactly one commit: [`docs#40`](https://github.com/zk-coins/docs/pull/40) (Variant-2 constant-per-batch on-chain redesign), **merged 2026-06-06**. The baseline was advanced from `a7a9f97` to `b6972b8` per decision **D1** (model against the post-`docs#40` form; see §Dependencies). The earlier `a7a9f97` pin and the Pass-3 audit predate `docs#40`; §3-dependent properties (P2, P5, P6) are therefore reconciled against the new on-chain layer in Phase 4.
 
 ## 0 · Declaration of intent
 
-The project lead has declared on 2026-06-06: *"ich will nicht 'richtung 100%'. ich will volle 100%, dafür sind wir hier!"* This document is the operational plan to reach that target — every spec-level property mechanically proven, not manually argued.
+The project lead has declared on 2026-06-06 that the target is not "towards 100%" but **the full 100%**. This document is the operational plan to reach that target — every spec-level property mechanically proven, not manually argued.
 
 This goal supersedes the Pass-3 audit's confidence labels (which were honest game-style manual arguments). Pass-3 stays as a historical artifact and as the priors / cross-check oracle for the verification work; the **mechanical certificates produced here become the load-bearing evidence.**
 
@@ -80,7 +80,7 @@ A verification result of the form *"under axioms A1–A14, the protocol invarian
 
 ### Phase 0 — Setup (target: 0.5–1 day)
 
-- Install Apalache on the verification host (m5me or local).
+- Install Apalache on the verification host (local Apple Silicon workstation).
 - Verify Apalache version + basic smoke test.
 - Port the existing [`nullifier-chaining/FirstSpendWins.tla`](./nullifier-chaining/FirstSpendWins.tla) from TLC-compatible to Apalache-compatible form; reproduce its property as an **unbounded** verification (no `Bound`). Demonstrates the toolchain works end-to-end.
 - **Deliverable:** `formal/property/P02_NoDoubleSpend/` with a passing unbounded Apalache run.
@@ -155,13 +155,13 @@ For each property, compare the Apalache verdict against the Pass-3 manual confid
 
 Any divergence is logged in `formal/property/Pn_<Name>/notes.md` with the resolution path.
 
-**Deliverable:** updated audit ([`audit/2026-06-06.04.md`](../audit/) or amend Pass-3) carrying mechanical certificate references.
+**Deliverable:** the Pass-4 reconciliation table in [`CERTIFICATE.md`](./CERTIFICATE.md), carrying the mechanical certificate references. The Pass-3 audit document itself is a **read-only snapshot** and is deliberately not amended; the Pass-4 cross-check lives in `formal/` alongside the certificates it references.
 
 ### Phase 5 — Documentation + sign-off (target: 1–2 days)
 
 - All `certificate.txt` files committed.
 - `formal/property/STATUS.md` table marked all green.
-- Audit doc updated with hyperlinks to certificates.
+- Certificate hyperlinks published in [`CERTIFICATE.md`](./CERTIFICATE.md) and [`property/STATUS.md`](./property/STATUS.md) (the Pass-3 snapshot stays read-only).
 - Reproducibility documented per-property.
 
 **Deliverable:** complete formal package, ready-for-review-PR on `zk-coins/research`.
@@ -191,18 +191,21 @@ If a property reaches Phase 6, it is the only one outside the 100% guarantee unt
 
 ### Hard
 
-- **docs#40** ([Variant-2 on-chain redesign](https://github.com/zk-coins/docs/pull/40)) — the on-chain layer model in `Onchain.tla` MUST be built against the post-docs#40 form. Three options:
-  1. **Wait for docs#40 to merge** — clean baseline, no rework.
-  2. **Model against the docs#40 branch tip** — earliest start, requires re-base if docs#40 changes.
-  3. **Model against current develop, retrofit after** — fastest start, but Phase 1 of Onchain.tla becomes throwaway work.
+- **docs#40** ([Variant-2 on-chain redesign](https://github.com/zk-coins/docs/pull/40)) — **RESOLVED.** `docs#40` merged into `develop` on 2026-06-06 (`b6972b8`), making the clean post-redesign baseline available immediately. Per decision **D1**, the spec baseline was advanced from `a7a9f97` to `b6972b8` and `Onchain.tla` (and every §3-dependent property) is modelled against the post-`docs#40` form — equivalent to the original option (1) "wait for merge", now that the merge has happened. No retrofit work is incurred.
 
-  **Recommendation: (1) wait, OR (2) model against branch.** The decision is the project lead's; documented here so it's not implicit.
+  Net change vs the pre-`docs#40` design that `Onchain.tla`/P2 must reflect: the on-chain object is now a constant-size `BatchInscription` carrying `prev_root → new_root` (not per-record raw nullifiers); nullifiers live off-chain in a `BatchBundle`; first-spend-wins is enforced by (a) sequential `prev_root` continuity + stale-rejection and (b) the `AggregateBatchProof`'s in-circuit obligation that `new_root = SMT.insert_many(prev_root, batch_nullifiers)` with every batch nullifier a non-member of `prev_root`. The abstract accumulator-level no-double-spend invariant is unchanged.
+
+### Decisions (resolved 2026-06-06)
+
+- **D1 — baseline:** advance to `b6972b8` (post-`docs#40`). Resolved above.
+- **D2 — verification host:** Apalache runs locally/interactively on the project's Apple Silicon workstation. Pinned tool versions recorded per-property in `notes.md`.
+- **D3 — derived-primitive axioms A15–A17:** accepted (half-aggregation soundness, Merkle/SMT CR lifting, `serialize(AccountState)` injectivity); each reduces to A1–A14. Note: `docs#40` renamed §3.3 "Half-aggregation" → "Off-chain signature handling" and moved aggregation into the `AggregateBatchProof` witness as an optimisation; A15's applicability to the new form is re-checked when `Onchain.tla` is built.
 
 ### Soft
 
 - Apalache tooling on the verification host.
 - TLA+ + Apalache local IDE (optional, helps iteration).
-- Reproducibility on m5me for nightly verifications.
+- Reproducibility on an always-on workstation for nightly verifications.
 
 ## 6 · Progress
 
@@ -210,16 +213,16 @@ Per-property status — updated as Phase 3 advances.
 
 | Property | Phase | Apalache status | Cross-check vs Pass-3 | Certificate |
 |---|---|---|---|---|
-| **P1** No-Forgery | not started | — | — | — |
-| **P2** No-Double-Spend | Phase 0 (port) | TLC bounded only (legacy `FirstSpendWins.tla`) | matches Pass-3 HIGH | pending Apalache port |
-| **P3** Balance Conservation | not started | — | — | — |
-| **P4** Zero-Knowledge | not started | — | — | — |
-| **P5** On-chain Privacy | not started | — | — | — |
-| **P6** Client-Side Validation | not started | — | — | — |
-| **P7** Issuance Authenticity v1 | not started | — | — | — |
-| **P8** Transport Confidentiality + Auth | not started | — | — | — |
-| **P9** Recovery Completeness | not started | — | — | — |
-| **P10** Capability Discipline | not started | — | — | — |
+| **P1** No-Forgery | Phase 3 done | **verified** — provenance unbounded; signature-level statement bounded + documented reduction | confirmed (HIGH) | [`property/P01_NoForgery/certificate.txt`](./property/P01_NoForgery/certificate.txt) |
+| **P2** No-Double-Spend | Phase 3 done (two layers) | **verified unbounded** — abstract (Phase 0) + full `Onchain` machine; chain continuity bounded (documented) | confirmed (HIGH) | [`property/P02_NoDoubleSpend/certificate.txt`](./property/P02_NoDoubleSpend/certificate.txt) |
+| **P3** Balance Conservation | Phase 3 done | **verified unbounded** (ghost supply/mint ledgers over the compliance predicate) | confirmed (HIGH, creator-bound v1 model) | [`property/P03_BalanceConservation/certificate.txt`](./property/P03_BalanceConservation/certificate.txt) |
+| **P4** Zero-Knowledge | Phase 3 done | **verified** — publication-gate flow invariant unbounded; indistinguishability itself = A2 (axiom, scoped) | confirmed (HIGH) at composition level | [`property/P04_ZeroKnowledge/certificate.txt`](./property/P04_ZeroKnowledge/certificate.txt) |
+| **P5** On-chain Privacy | Phase 3 done | **verified** — publisher-only-link unbounded; structural surface facts labelled; network half out of scope | confirmed; **strengthened post-`docs#40`** (on-chain `k_j` leak eliminated; publisher pubkey is the new, sole on-chain link) | [`property/P05_OnchainPrivacy/certificate.txt`](./property/P05_OnchainPrivacy/certificate.txt) |
+| **P6** Client-Side Validation | Phase 3 done | **verified unbounded** (§2.3.3 receive gate composed over the full on-chain machine) | confirmed (HIGH) | [`property/P06_ClientSideValidation/certificate.txt`](./property/P06_ClientSideValidation/certificate.txt) |
+| **P7** Issuance Authenticity v1 | Phase 3 done | **verified unbounded** | confirmed (HIGH) | [`property/P07_IssuanceAuthenticity/certificate.txt`](./property/P07_IssuanceAuthenticity/certificate.txt) |
+| **P8** Transport Confidentiality + Auth | Phase 3 done | **verified unbounded** (ACK nonce-freshness = the merged F17 fix) | confirmed (HIGH; F17 LOW resolved in spec and model) | [`property/P08_TransportConfAuth/certificate.txt`](./property/P08_TransportConfAuth/certificate.txt) |
+| **P9** Recovery Completeness | Phase 3 done | **verified** — safety (no false-accept) unbounded; liveness via enabledness surrogate (Apalache 0.58.0 has no fairness support) | confirmed (HIGH correctness / MEDIUM liveness — mirrored) | [`property/P09_RecoveryCompleteness/certificate.txt`](./property/P09_RecoveryCompleteness/certificate.txt) |
+| **P10** Capability Discipline | Phase 3 done | **verified unbounded** — 3 dynamic invariants; spend-escalation recorded as structural (an earlier vacuous encoding was caught in review and fixed) | confirmed (HIGH) | [`property/P10_CapabilityDiscipline/certificate.txt`](./property/P10_CapabilityDiscipline/certificate.txt) |
 
 Update protocol: every Phase-3 verification result (success or counter-example) updates this table in the same PR.
 
@@ -230,21 +233,21 @@ The 100% Verification Initiative is **complete** when **all** of the following h
 1. Every row of §6 Progress is "verified" with a non-empty Apalache certificate.
 2. Every divergence between Apalache and Pass-3 is reconciled (resolution recorded in the per-property `notes.md`).
 3. Reproducibility verified: a third party can clone `zk-coins/research`, install Apalache from a pinned version, and re-run every certificate.
-4. The audit doc carries hyperlinks to each certificate.
+4. The certificate hyperlinks are published in [`CERTIFICATE.md`](./CERTIFICATE.md) (Pass-4 reconciliation table) and [`property/STATUS.md`](./property/STATUS.md). The Pass-3 audit document is a read-only snapshot and is intentionally not amended.
 5. The project lead signs off after reading the final cross-check table.
 
 Anything short of all five is **not** "100%" and the work continues.
 
 ## 8 · Reproducibility contract
 
-Every verification must be re-runnable by a third party. Each `formal/property/Pn_<Name>/` directory contains:
+Every verification must be re-runnable by a third party. Each `formal/property/Pnn_<Name>/` directory contains:
 
-- `property.tla` — the property and any inductive invariant
-- `apalache.cfg` — Apalache configuration (version, init, next, invariants, timeout)
-- `certificate.txt` — Apalache stdout from the successful run
-- `notes.md` — Apalache version, command line, time taken, any decisions
+- `property.tla` — the property and its inductive invariant (`IndInv` / `IndInvInit`). The constant instance is pinned in-module (`ConstInit`, consumed via `--cinit`); there is no separate `apalache.cfg`, because the proof is several runs with different `--init`/`--inv`/`--length` combinations a single TLC-style config cannot express.
+- `verify.sh` — the reproducible runner: it stages `property.tla` with its `module/` dependencies into a scratch dir (Apalache resolves `EXTENDS` only from the spec's own directory) and runs the check sequence, exiting non-zero on any unexpected outcome.
+- `certificate.txt` — Apalache stdout from the successful run (with a pinned-version header).
+- `notes.md` — Apalache + Z3 versions, command table, modeling decisions, vacuity probes, negative controls, Pass-3 cross-check.
 
-A `Makefile` or `verify.sh` at the directory root executes every verification in one command. CI integration is a stretch goal.
+[`verify-all.sh`](./verify-all.sh) at the `formal/` root executes the module gate plus every property certificate in one command. CI integration is a stretch goal.
 
 ## 9 · Honest residual after 100%
 
@@ -259,4 +262,4 @@ These items are explicit in the §1.2 out-of-scope section and in the audit's §
 
 ## 10 · Authority
 
-This plan was produced by Claude on 2026-06-06 in response to the project lead's declaration *"wir müssen das vollständig dokumentieren"*. The document is the canonical reference for the initiative; updates land via PR on `zk-coins/research` and supersede any earlier version on merge.
+This plan was produced on 2026-06-06 in response to the project lead's directive to document the verification effort completely. The document is the canonical reference for the initiative; updates land via PR on `zk-coins/research` and supersede any earlier version on merge.

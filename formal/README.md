@@ -41,7 +41,7 @@ These are documented in the [Pass-3 audit §8 residual-risk inventory](../audit/
 - Apalache verification cycles are minutes-to-hours per property, not weeks of human proof labor.
 - EasyCrypt would be more thorough on primitive composition but adds months of effort for a marginal increment past axiomatization.
 
-**Why not pure TLC (the classical TLA+ model checker):** TLC is bounded only. The existing [`nullifier-chaining/FirstSpendWins.tla`](./nullifier-chaining/FirstSpendWins.tla) was a TLC model with `Bound = 5`. It is a useful smoke test but not 100% under our definition.
+**Why not pure TLC (the classical TLA+ model checker):** TLC is bounded only. The legacy [`nullifier-chaining/FirstSpendWins.tla`](https://github.com/zk-coins/research/blob/feat/formal-nullifier-chaining-model/formal/nullifier-chaining/FirstSpendWins.tla) (branch `feat/formal-nullifier-chaining-model`) was a TLC model with `Bound = 5`. It was a useful smoke test but not 100% under our definition; Phase 0 ported it to an unbounded Apalache proof (`property/P02_NoDoubleSpend/abstract.tla`).
 
 ## Properties under verification
 
@@ -105,33 +105,44 @@ A Pass-4 audit *of the formal modeling itself* — separate from the spec audit 
 formal/
 ├── README.md                                  ← this file (initiative framing)
 ├── 100-percent-verification-plan.md           ← phases, deliverables, progress
+├── CERTIFICATE.md                             ← sign-off + Pass-4 reconciliation table
+├── verify-all.sh                              ← one-command reproduction of everything
 ├── module/                                    ← formal model of the spec
 │   ├── Foundations.tla
+│   ├── Assumptions.tla
 │   ├── Proofs.tla
 │   ├── Onchain.tla
 │   ├── Transport.tla
 │   ├── Access.tla
 │   ├── Architecture.tla
-│   ├── Assumptions.tla
-│   └── Adversary.tla
-├── property/                                  ← per-property verification artifacts
-│   ├── P01_NoForgery/
-│   │   ├── property.tla
-│   │   ├── invariants.tla
-│   │   ├── apalache.cfg
-│   │   ├── certificate.txt
-│   │   └── notes.md
-│   ├── P02_NoDoubleSpend/
-│   ├── …
-│   └── P10_CapabilityDiscipline/
-└── nullifier-chaining/                        ← legacy: TLC bounded; superseded by P02_NoDoubleSpend
-    ├── FirstSpendWins.tla
-    └── FirstSpendWins.cfg
+│   ├── Adversary.tla
+│   └── verify-modules.sh                      ← module type-check + smoke gate
+└── property/                                  ← per-property verification artifacts
+    ├── STATUS.md                              ← all-green status table
+    ├── P01_NoForgery/
+    │   ├── property.tla                       ← invariant + inductive strengthening
+    │   ├── verify.sh                          ← reproducible staged runner
+    │   ├── certificate.txt                    ← Apalache transcript
+    │   └── notes.md                           ← spec mapping, decisions, controls
+    ├── P02_NoDoubleSpend/                     ← also abstract.tla + certificate-abstract.txt
+    ├── …
+    └── P10_CapabilityDiscipline/
 ```
+
+The legacy bounded TLC model `FirstSpendWins.tla` lives on branch
+[`feat/formal-nullifier-chaining-model`](https://github.com/zk-coins/research/blob/feat/formal-nullifier-chaining-model/formal/nullifier-chaining/FirstSpendWins.tla);
+it is superseded by `property/P02_NoDoubleSpend/` (Phase 0 abstract layer +
+full on-chain layer).
 
 ## Status
 
-Initialised 2026-06-06. Plan document complete; module modeling pending. See [`100-percent-verification-plan.md`](./100-percent-verification-plan.md) §Progress for live status per property.
+Initialised 2026-06-06; Phases 0–5 complete 2026-06-07. **All ten properties
+P1–P10 carry passing Apalache certificates** (see
+[`property/STATUS.md`](./property/STATUS.md)); the Pass-4 reconciliation
+against the Pass-3 manual audit and the sign-off summary live in
+[`CERTIFICATE.md`](./CERTIFICATE.md). Reproduce everything with one command:
+[`verify-all.sh`](./verify-all.sh). Live per-property detail:
+[`100-percent-verification-plan.md`](./100-percent-verification-plan.md) §Progress.
 
 ## Reproducibility
 

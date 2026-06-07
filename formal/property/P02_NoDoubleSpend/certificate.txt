@@ -1,0 +1,198 @@
+================================================================================
+zkCoins 100% Logical Verification Initiative
+CERTIFICATE -- P02 No-Double-Spend (full on-chain model)
+================================================================================
+
+Property      : P02 No-Double-Spend.
+Claim         : No nullifier is admitted into the global nullifier accumulator
+                a second time while already present; a `completed` spend is
+                unique and absolute. (Pass-3 audit P2, HIGH.)
+Result        : VERIFIED.
+                - Layer A (abstract accumulator): UNBOUNDED via inductive inv.
+                - Layer B (full on-chain machine): UNBOUNDED no-double-spend
+                  (+ disjoint zones) via inductive inv over the concrete
+                  BatchInscription machine; chain prev_root continuity verified
+                  bounded over the admit/confirm fragment (honest scope below).
+
+Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
+Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
+Date          : 2026-06-06
+Spec baseline : zk-coins/docs@b6972b8 (post-docs#40, On-chain Sec. 3.4/3.5/3.6/
+                3.7/3.9/3.10)
+Models        : abstract.tla  (module `abstract`, Phase 0; self-contained)
+                property.tla  (module `property`, EXTENDS module/Onchain.tla)
+Runner        : ./verify.sh  (stages Foundations+Assumptions+Onchain for Layer B)
+
+--------------------------------------------------------------------------------
+LAYERS -- what each one proves
+--------------------------------------------------------------------------------
+Layer A -- abstract.tla (Phase 0, PRESERVED unchanged from the Phase-0 package;
+  its standalone transcript is kept verbatim in certificate-abstract.txt).
+  The accumulator is the three opaque nullifier sets pending / completed /
+  doubled. The [GATE] first-spend-wins conjunct (B \intersect Acc = {}) is the
+  set-level admission discipline. Proven UNBOUNDED:
+    [A2] base   Init => IndInv
+    [A3] step   IndInv /\ Next => IndInv'
+    [A4] impl   IndInv => NoDoubleSpend
+  -> NoDoubleSpend holds in every reachable state, any number of transitions.
+
+Layer B -- property.tla (this phase) EXTENDS the FULL on-chain state machine
+  module/Onchain.tla: the concrete BatchInscription record, the publisher
+  signature oracle (A7, [SIG]), the half-aggregation obligation (A15, [AGG]),
+  block_anchor admissibility (Sec. 3.5, [ANCHOR]), prev_root continuity
+  (Sec. 3.4 / 3.6 step 4, [CONT]), the SMT insert_many relation
+  (Sec. 3.7, [INSERT]), the post-#40 first-spend-wins non-membership gate
+  ([GATE]), the three-state lifecycle (Sec. 3.10), and bounded reorg
+  (Sec. 3.7/3.9, A12). It proves the SAME safety claim over this machine:
+    [B2] base   OnInit => IndInv_P2
+    [B3] step   IndInv_P2 /\ OnNext => IndInv_P2'     (OnNext = PublisherSign
+                                                       \/ Admit \/ Confirm \/ Reorg)
+    [B4] impl   IndInv_P2 => INV   (INV = OnNoDoubleSpend /\ OnZonesDisjoint)
+  -> no-double-spend AND disjoint zones hold UNBOUNDED over the full machine.
+  Supporting bounded results:
+    [B1] bounded safety sanity, INV, length 6 (= finality depth K).
+    [B5] chain prev_root continuity (OnPrevRootContinuity, local step form)
+         over the admit/confirm fragment, length 6.
+
+--------------------------------------------------------------------------------
+"UNBOUNDED" and the Seq variable (honest scope)
+--------------------------------------------------------------------------------
+The unbounded claim is the no-double-spend SAFETY property. IndInv_P2 is stated
+over the SET variables (onPending/onCompleted/onDoubled/onAuthorised); it does
+not reference the `onAdmittedChain` SEQUENCE. The inductive step [B3] uses an
+assignment-form init (IndInvInit) that ASSIGNS every Onchain variable, drawing
+each set from its powerset and assigning the sequence an arbitrary value via
+apalache.Gen (capacity <= 4). Because IndInv_P2 never reads the chain, and the
+SET effects of every OnNext action (incl. Admit, which Appends to the chain) do
+not depend on the chain's value, the step is a faithful statement about the SET
+PROJECTION of the state: "for every reachable set-state satisfying IndInv_P2
+(under ANY admitted history), one OnNext step preserves IndInv_P2." The Gen
+capacity bounds only the bookkeeping witness, never the safety conclusion. The
+[GATE] tests batch nullifiers against the live set `Acc`, not the chain, so the
+set-projection proof is a complete proof of the P2 claim -- the chain is pure
+bookkeeping.
+
+Chain prev_root continuity DOES quantify over DOMAIN onAdmittedChain. Apalache
+encodes a Seq with a static capacity, so an unbounded inductive step assuming a
+continuity-respecting chain of arbitrary length is not one SMT query. We are
+explicit: continuity is verified BOUNDED (length 6), and only over the
+admit/confirm fragment -- see the next section.
+
+--------------------------------------------------------------------------------
+Honest finding -- Reorg breaks prev_root continuity (over-approximation)
+--------------------------------------------------------------------------------
+OnPrevRootContinuity is NOT an invariant of the FULL machine including Reorg.
+Onchain's `Reorg` rebuilds the chain with SelectSeq(onAdmittedChain, Survives),
+which removes reverted batches WHEREVER they sit. The module comment intends a
+SUFFIX-only revert, but the coded SelectSeq over an arbitrary D \subseteq
+onPending over-approximates to any-position removal; a surviving later batch
+then keeps a prev_root that commits to a now-removed predecessor, breaking local
+continuity. This is a chain-bookkeeping over-approximation in Reorg, NOT a
+safety violation: no-double-spend is tested against the live set accumulator,
+holds under Reorg (proven [B2]+[B3]+[B4]), and does not lean on continuity.
+Continuity is therefore certified over the admit/confirm fragment ([B5]); the
+gap is documented in notes.md ("Reorg continuity over-approximation"). Onchain
+was NOT modified.
+
+--------------------------------------------------------------------------------
+Commands (exactly as run by verify.sh)
+--------------------------------------------------------------------------------
+Layer A (abstract.tla, self-contained; Nullifier = 1..6 via ConstInit):
+  apalache-mc check --cinit=ConstInit --init=Init      --next=Next --inv=IndInv        --length=12 abstract.tla   # [A1] bounded sanity
+  apalache-mc check --cinit=ConstInit --init=Init                  --inv=IndInv        --length=0  abstract.tla   # [A2] base
+  apalache-mc check --cinit=ConstInit --init=IndInvInit --next=Next --inv=IndInv        --length=1  abstract.tla   # [A3] step
+  apalache-mc check --cinit=ConstInit --init=IndInvInit            --inv=NoDoubleSpend --length=0  abstract.tla   # [A4] impl
+
+Layer B (property.tla EXTENDS Onchain; staged with Foundations+Assumptions+
+Onchain; OnConstInit fixes small finite universes):
+  apalache-mc typecheck property.tla                                                                              # [B0] typecheck
+  apalache-mc check --cinit=OnConstInit --init=OnInit     --next=OnNext           --inv=INV          --length=6 property.tla  # [B1] bounded safety
+  apalache-mc check --cinit=OnConstInit --init=OnInit     --next=OnNext           --inv=IndInv_P2    --length=0 property.tla  # [B2] base
+  apalache-mc check --cinit=OnConstInit --init=IndInvInit --next=OnNext           --inv=IndInv_P2    --length=1 property.tla  # [B3] step
+  apalache-mc check --cinit=OnConstInit --init=IndInvInit --next=OnNext           --inv=INV          --length=0 property.tla  # [B4] impl
+  apalache-mc check --cinit=OnConstInit --init=OnInit     --next=NextAdmitConfirm --inv=INV_Continuity --length=6 property.tla  # [B5] continuity (fragment)
+
+--------------------------------------------------------------------------------
+Negative control on the FULL model (the gate is load-bearing)
+--------------------------------------------------------------------------------
+A /tmp copy of module/Onchain.tla with the [GATE] conjunct
+  cand.batchNullifiers \intersect cand.prevRoot = {}
+deleted from `Admit`, checked with
+  apalache-mc check --cinit=OnConstInit --init=OnInit --next=OnNext --inv=INV --length=3 property.tla
+yields a counterexample (The outcome is: Error, exit 12). 3-step trace:
+  State0  empty
+  State1  PublisherSign           -- publisher authorises the batch_message
+  State2  Admit  batch = { nf3 }  -- nf3 enters onPending  (onDoubled = {})
+  State3  Admit  batch = { nf3 }  -- nf3 re-inserted while present; with [GATE]
+                                     gone, onDoubled = { nf3 } => OnNoDoubleSpend
+                                     violated.
+(nf3 = MkNullifier(0, SmokeCoinId(3)).) Onchain was restored / the /tmp copy
+discarded; the committed module is unchanged.
+
+================================================================================
+FULL verify.sh TRANSCRIPT (2026-06-06)
+================================================================================
+Apalache version: 0.58.0
+
+==================================================================
+LAYER A -- abstract accumulator model (Phase 0, unbounded)
+==================================================================
+Universe: Nullifier = 1..6 (ConstInit); inductive argument uniform in |Nullifier|.
+
+### [A1] bounded sanity  Init/Next |= IndInv (length 12)
+The outcome is: NoError                                           I@23:35:59.996
+Checker reports no error up to computation length 12              I@23:35:59.996
+>>> [A1] bounded sanity  Init/Next |= IndInv (length 12): OK
+
+### [A2] inductive BASE   Init => IndInv (length 0)
+The outcome is: NoError                                           I@23:36:01.119
+Checker reports no error up to computation length 0               I@23:36:01.119
+>>> [A2] inductive BASE   Init => IndInv (length 0): OK
+
+### [A3] inductive STEP   IndInv /\ Next => IndInv' (length 1)
+The outcome is: NoError                                           I@23:36:02.311
+Checker reports no error up to computation length 1               I@23:36:02.312
+>>> [A3] inductive STEP   IndInv /\ Next => IndInv' (length 1): OK
+
+### [A4] IMPLICATION      IndInv => NoDoubleSpend (length 0)
+The outcome is: NoError                                           I@23:36:03.447
+Checker reports no error up to computation length 0               I@23:36:03.448
+>>> [A4] IMPLICATION      IndInv => NoDoubleSpend (length 0): OK
+
+==================================================================
+LAYER B -- full on-chain model (this phase)
+==================================================================
+### [B0] typecheck       property.tla (EXTENDS Onchain)
+>>> [B0] typecheck       property.tla (EXTENDS Onchain): OK
+
+### [B1] bounded SAFETY   OnInit/OnNext |= INV (length 6)
+The outcome is: NoError                                           I@23:36:06.400
+Checker reports no error up to computation length 6               I@23:36:06.400
+>>> [B1] bounded SAFETY   OnInit/OnNext |= INV (length 6): OK
+
+### [B2] inductive BASE   OnInit => IndInv_P2 (length 0)
+The outcome is: NoError                                           I@23:36:08.266
+Checker reports no error up to computation length 0               I@23:36:08.266
+>>> [B2] inductive BASE   OnInit => IndInv_P2 (length 0): OK
+
+### [B3] inductive STEP   IndInv_P2 /\ OnNext => IndInv_P2' (len 1)
+The outcome is: NoError                                           I@23:36:10.832
+Checker reports no error up to computation length 1               I@23:36:10.832
+>>> [B3] inductive STEP   IndInv_P2 /\ OnNext => IndInv_P2' (len 1): OK
+
+### [B4] IMPLICATION      IndInv_P2 => INV (length 0)
+The outcome is: NoError                                           I@23:36:12.533
+Checker reports no error up to computation length 0               I@23:36:12.534
+>>> [B4] IMPLICATION      IndInv_P2 => INV (length 0): OK
+
+### [B5] continuity (admit/confirm fragment) |= INV_Continuity (len 6)
+The outcome is: NoError                                           I@23:36:14.548
+Checker reports no error up to computation length 6               I@23:36:14.548
+>>> [B5] continuity (admit/confirm fragment) |= INV_Continuity (len 6): OK
+
+==================================================================
+RESULT: 10 check(s) passed, 0 unexpected.
+P02 NoDoubleSpend: VERIFIED.
+  Layer A (abstract):    unbounded   [A2]+[A3]+[A4]
+  Layer B (full Onchain): unbounded no-double-spend [B2]+[B3]+[B4];
+                          bounded safety [B1] + fragment continuity [B5].
