@@ -16,8 +16,9 @@ was rewritten.
 | `LIGHTNING_ATOMIC_SWAP.md` | `LIGHTNING_ATOMIC_SWAP.md` (develop) | Trustless LN↔zkCoins atomic-swap design |
 | `MIGRATION_RESEARCH.md` | `MIGRATION_RESEARCH.md` (develop) | SP1→Plonky2 (and onward) migration analysis |
 | `MULTI_ASSET.md` | `MULTI_ASSET.md` (develop) | Multi-asset extension design |
+| `ALIASING.md` | `zk-coins/docs` (`docs/architecture/aliasing.md`, moved 2026-06-21) | Superseded v0.2 `name@host` aliasing/addressing UX proposal. The normative model is the LNURL design in the public protocol spec §4.3. |
 | `SPEC.md` | `SPEC.md` (develop) | zkCoins **circuit / single-asset** spec — the implementation-level spec the design drafts reference. Distinct from the public protocol spec (see below). |
-| `ROADMAP.md` | `ROADMAP.md` (develop) | The node's Plonky2-migration roadmap/status tracker. Archived here verbatim; the published, docs-site version is at [docs.zkcoins.app/roadmap](https://docs.zkcoins.app/roadmap). |
+| `ROADMAP.md` | `ROADMAP.md` (develop) | The node's Plonky2-migration roadmap/status tracker (the canonical implementation roadmap). |
 | `program-plonky2-sessions/` | `program-plonky2/SESSION_STATE.md`, `STAGE_5D_NEXT_4_DESIGN.md`, `STEP4_REVIEW.md`, `STEP7_PREP.md` (develop) | Per-step migration session notes |
 | `plonky3-migration/` | `MIGRATION_PLONKY3*.md` + `docs/migration/PLONKY3_*.md` (staging, PRs [#211](https://github.com/zk-coins/node/pull/211) / [#212](https://github.com/zk-coins/node/pull/212) / [#214](https://github.com/zk-coins/node/pull/214)) | Plonky3 migration plan, audit, cutover playbook |
 
@@ -32,7 +33,7 @@ link like `./ROADMAP.md` inside these documents, resolve it as follows:
 
 | Reference in the drafts | Now lives at |
 |---|---|
-| `ROADMAP.md` | `./ROADMAP.md` (archived in this directory); published version at [docs.zkcoins.app/roadmap](https://docs.zkcoins.app/roadmap) |
+| `ROADMAP.md` | `./ROADMAP.md` (archived in this directory; the canonical implementation roadmap) |
 | public protocol spec | [docs.zkcoins.app/specification](https://docs.zkcoins.app/specification) |
 | `SPEC.md` (circuit/single-asset spec) | `./SPEC.md` (in this directory) |
 | `CONTRIBUTING.md` | [zk-coins/node CONTRIBUTING.md](https://github.com/zk-coins/node/blob/develop/CONTRIBUTING.md) |
