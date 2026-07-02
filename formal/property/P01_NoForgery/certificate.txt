@@ -1,0 +1,215 @@
+================================================================================
+zkCoins 100% Logical Verification Initiative
+CERTIFICATE -- P01 No-Forgery
+================================================================================
+
+Property      : P01 No-Forgery (mints excluded; covered by P07).
+Claim         : A coin c with c.recipient = R, c.amount = v, c.asset_id = a can
+                exist only as the proven output of a Sec. 2.1-compliant
+                transition signed by some account's sk_i. A PPT adversary without
+                sk_i for that account, and without breaking A1, A5, A7, cannot
+                cause an honest receiver to credit c. (Pass-3 audit P1, HIGH for
+                the spec design.)
+Result        : VERIFIED, two-tier --
+                TIER 1 (structural provenance, INV_Provenance): UNBOUNDED, via an
+                  inductive invariant over the Sec. 2.1 compliance-predicate state
+                  machine (module/Proofs.tla). Every credited coin was the output
+                  of its HOLDER's own compliant transition.
+                TIER 2 (signature-level, INV_NoForgery): BOUNDED safety (length 6);
+                  its unbounded extension reduces to TIER 1 + the model's honest-
+                  oracle lockstep (a hand proof over the two actions; negative
+                  control confirms the lockstep is load-bearing).
+
+Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
+Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
+Date          : 2026-06-07
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1; Proofs Sec. 2.1 clauses 2/5/7,
+                Foundations Sec. 1.4; On-chain Sec. 2.4 / 3.6 cited for composition)
+Model         : property.tla  (module `property`, EXTENDS module/Proofs.tla)
+Runner        : ./verify.sh  (stages Foundations+Assumptions+Proofs alongside)
+
+What the model proves
+---------------------
+property.tla EXTENDS module/Proofs.tla -- the faithful conjunction of the nine
+Sec. 2.1 compliance clauses C and the per-account issuance/spend state machine
+PrInit/PrNext. The A7 signing oracle prAuthorised grows ONLY when an account's
+own current key signs its own transition message (MintStep / SendStep each add
+<<prev.currentPk, PrMsgTag(NullifierSet, OutputIds)>>); signatures are never
+removed. Every output coin id is MkCoinId(prev_account_state, asset, idx)
+(clause 5), so it structurally embeds the creating prior account state in
+cid.prevAsh, and lies in the signed message's ocr (clauses 6/9).
+
+TIER 1 -- INV_Provenance (UNBOUNDED):
+
+  INV_Provenance == \A acct \in Accounts : \A cid \in prChSet[acct] :
+                      cid.prevAsh.owner = AddressOf(acct)
+
+  Every credited coin's creating account state is owned by its holder -- i.e. the
+  coin was the output of the holder's OWN compliant transition. (MkCoinId embeds
+  prevAsh; clause 7 pins owner across key rotations; only a C-valid MintStep/
+  SendStep of account a yields a coin with prevAsh.owner = AddressOf(a).) This
+  invariant reads only prChSet + the coin structure, never prAuthorised.
+
+TIER 2 -- INV_NoForgery (BOUNDED safety + reduction):
+
+  SignedOutputs == UNION { { <<sig[1], cid>> : cid \in sig[2].ocr }
+                           : sig \in prAuthorised }
+  INV_NoForgery  == \A acct \in Accounts : \A cid \in prChSet[acct] :
+                      << cid.prevAsh.currentPk, cid >> \in SignedOutputs
+
+  Every credited coin is a SIGNED output under the key current in its creating
+  account state (clause 2: txn_pubkey = prev.current_pubkey). Checked bounded
+  (length 6). Unbounded extension: by TIER 1 every coin is its holder's own
+  compliant output, and every such step adds the matching signature in lockstep
+  (cid in OutputIds, signed under cid.prevAsh.currentPk), monotonically -- so the
+  membership holds in every reachable state. See notes.md for the reduction.
+
+What "unbounded" means here (TIER 1)
+------------------------------------
+The proof removes any execution-length bound: the conjunction of checks
+[2] (base), [3] (step) and [4] (implication) is a standard inductive-invariant
+argument, so INV_Provenance holds in EVERY reachable state of PrInit/PrNext, for
+an arbitrary number of MintStep/SendStep transitions. The account universe is a
+finite parameter (Accounts = {1,2}); the inductive argument is per-account local
+(each IndInv conjunct quantifies a single account and every action touches one
+account) and uniform in |Accounts| -- the base [2] and implication [4] checks were
+re-confirmed at Accounts = {1,2,3} (notes.md). Data-domain finiteness per state is
+intrinsic to SMT-based model checking and is a modelling parameter, not a hidden
+bound on the number of transitions.
+
+Why TIER 2 is not claimed unbounded (an honest scope statement)
+---------------------------------------------------------------
+A maxima probe (notes.md) shows |prChSet[a]| <= 1 in every reachable state but
+|prAuthorised| is UNBOUNDED (every SendStep adds a fresh signature). Apalache's
+inductive-step --init generates the symbolic pre-state with apalache.Gen, a value
+of bounded size; an invariant that ENUMERATES prAuthorised (as INV_NoForgery does,
+via SignedOutputs) can only be checked on pre-states with |prAuthorised| <= the
+Gen budget, which does not cover all reachable states. So an unbounded inductive
+proof of the signature-level statement is not available by this method. We
+therefore project the unbounded claim onto the prAuthorised-free INV_Provenance
+(TIER 1, sound), prove INV_NoForgery bounded (TIER 2), and reduce its unbounded
+extension to TIER 1 + the honest-oracle lockstep. This mirrors P02's honesty
+discipline for its unbounded onAdmittedChain sequence.
+
+Inductive invariant and strengthenings (TIER 1)
+-----------------------------------------------
+INV_Provenance alone is NOT inductive. The closing inductive invariant is
+
+  IndInv == PrTypeOK
+            /\ \A a \in Accounts : OwnerPinned(a) /\ FreshIsCanonical(a)
+            /\ INV_Provenance
+
+with two strengthenings (the same two P07 uses):
+  S1 (OwnerPinned)      prState[a].owner = AddressOf(a)            [PrInit + clause 7]
+  S2 (FreshIsCanonical) sendCounter = 0 => current_pubkey = AddressOf(a)
+                        AND balances empty AND coin-history empty
+IndInvInit is the assignment-form --init for the step check: each variable is
+produced by apalache.Gen and pinned by the IndInv body. (prAuthorised gets a small
+Gen budget for type shape only; IndInv does not read it.)
+
+Commands (exactly as run by verify.sh)
+--------------------------------------
+  apalache-mc check --cinit=ConstInit --init=PrInit     --next=PrNext --inv=NoCoinsEver     --length=3  property.tla   # [0] vacuity (expect VIOLATION)
+  apalache-mc check --cinit=ConstInit --init=PrInit     --next=PrNext --inv=IndInv          --length=6  property.tla   # [1] bounded sanity
+  apalache-mc check --cinit=ConstInit --init=PrInit     --next=PrNext --inv=IndInv          --length=0  property.tla   # [2] base: PrInit => IndInv
+  apalache-mc check --cinit=ConstInit --init=IndInvInit --next=PrNext --inv=IndInv          --length=1  property.tla   # [3] step: IndInv /\ PrNext => IndInv'
+  apalache-mc check --cinit=ConstInit --init=IndInvInit --next=PrNext --inv=INV_Provenance  --length=0  property.tla   # [4] impl: IndInv => INV_Provenance
+  apalache-mc check --cinit=ConstInit --init=PrInit     --next=PrNext --inv=INV_NoForgery   --length=6  property.tla   # [5] TIER-2 bounded safety
+
+Checks [2] + [3] + [4] together are the UNBOUNDED proof of TIER 1; [5] is the
+bounded TIER-2 safety result. All runs use --cinit=ConstInit (Accounts = {1,2},
+one v1 asset family).
+
+Vacuity probe and maxima probe
+------------------------------
+[0] NoCoinsEver is VIOLATED at depth 1 (a MintStep credits the first coin), so the
+invariants are non-vacuous over real credited coins. Maxima probe (notes.md):
+ChBoundLE1 (|prChSet[a]| <= 1) holds at length 8; AuthBoundLE4 is VIOLATED at
+length 8 (|prAuthorised| unbounded) -- this is what justifies the two-tier split.
+
+Negative control (the honest-signing oracle is load-bearing)
+------------------------------------------------------------
+In a /tmp copy, Proofs.PrNext was extended with AdvForgeStep(a, victim): account
+`a` credits a coin built over the VICTIM's prev state into prChSet[a] WITHOUT
+extending prAuthorised (it breaks the prChSet/prAuthorised lockstep -- credits a
+coin no key signed). Running
+
+  apalache-mc check --cinit=ConstInit --init=PrInit --next=PrNext --inv=INV_NoForgery --length=2 property.tla
+
+yields a counterexample at State 1 (EXITCODE 12, "state invariant violated"):
+
+  prAuthorised = {}                                   (oracle NOT grown -- the forgery)
+  prChSet[1]   = { [ asset |-> [creator |-> 2, ...], idx |-> 0,
+                     prevAsh |-> [ owner |-> 2, currentPk |-> 2, ... ] ] }
+               => account 1 credits a coin created under key 2 with NO signature
+                  => INV_NoForgery violated (and INV_Provenance too: the credited
+                     coin's prevAsh.owner = 2 != AddressOf(1)).
+
+With the honest lockstep intact the counterexample disappears and checks [0]-[5]
+all report their expected outcomes -- confirming the model can SEE a forgery, so
+the verified verdict is meaningful. The committed property.tla / module/Proofs.tla
+keep the honest A7 oracle intact; the /tmp copy and its _apalache-out were
+discarded.
+
+Cross-check vs Pass-3
+---------------------
+Pass-3 label HIGH (for the spec design); Apalache verdict: TIER 1 VERIFIED
+unbounded, TIER 2 verified bounded + reduced => confirmed at the
+compliance-predicate level for the Proofs-machine half. The audit's attack
+classes (SpendRecord-signature forgery; faked creating_prev_ash; Pk_i
+substitution) map to the clauses the negative control shows load-bearing
+(clause 2 PrSigValid under current_pubkey; MkCoinId's structural prevAsh; clause 7
+owner-invariance = S1). Full reconciliation deferred to Phase 4.
+
+Scope (what stays at the A1/A5/A7 oracle level)
+-----------------------------------------------
+- Onchain admission half (a forged coin cannot be laundered onto the chain):
+  covered by P02 -- Onchain.Admit's [AGG] conjunct (Sec. 3.3 / A15,
+  AggSoundValid(memberValidities), memberValidities # {}: every member SpendRecord
+  verifies under its own per-account recursive proof) together with [SIG] and the
+  [GATE] first-spend-wins conjunct P02 proves unbounded. The composed Both* claim
+  is the conjunction of THIS P01 (no compliant transition produces a forged coin)
+  and P02 (no admission step launders one past the gate), machine-checked on each
+  half. At the abstract level [AGG] is the Assumptions oracle bound AggSoundValid.
+- Direct forgery of the validity proof / Fiat-Shamir misuse -- breaks A1; axiom.
+- H(Pk0)=owner preimage, asset-id / coin-id collisions -- A5/A6 / A3; modelled at
+  the AddressOf / structured-digest level (Foundations digest abstraction).
+- Sign-to-contract nonce malleability -- A5/A7 (BIP-340 EUF-CMA); txn_sig validity
+  is the A7 oracle outcome, not curve arithmetic.
+- Mints are excluded from P1 by the audit (covered by P07); the present invariants
+  cover the send/credit path and, via the same prChSet/prAuthorised lockstep, the
+  mint output coins -- no coin of any origin enters prChSet without its honest
+  signature.
+
+================================================================================
+FULL APALACHE TRANSCRIPT (verify.sh checks, 2026-06-07)
+================================================================================
+--- verify.sh summary (./verify.sh, 2026-06-07) ---
+Apalache version: 0.58.0
+Universe: Accounts = {1,2}, one v1 asset family (PrConstInit via ConstInit);
+inductive argument is per-account local (notes.md records the |Accounts|=3 base/impl confirmation).
+
+### [0] vacuity probe   ~NoCoinsEver must be VIOLATED (len 3)
+>>> [0] vacuity probe   ~NoCoinsEver must be VIOLATED (len 3): VIOLATED as expected (coins are credited -- invariant non-vacuous)
+
+### [1] bounded sanity  PrInit/PrNext |= IndInv (length 6)
+>>> [1] bounded sanity  PrInit/PrNext |= IndInv (length 6): OK
+
+### [2] inductive BASE   PrInit => IndInv (length 0)
+>>> [2] inductive BASE   PrInit => IndInv (length 0): OK
+
+### [3] inductive STEP   IndInv /\ PrNext => IndInv' (len 1)
+>>> [3] inductive STEP   IndInv /\ PrNext => IndInv' (len 1): OK
+
+### [4] IMPLICATION      IndInv => INV_Provenance (length 0)
+>>> [4] IMPLICATION      IndInv => INV_Provenance (length 0): OK
+
+### [5] TIER-2 SAFETY    PrInit/PrNext |= INV_NoForgery (length 6)
+>>> [5] TIER-2 SAFETY    PrInit/PrNext |= INV_NoForgery (length 6): OK
+
+==================================================================
+RESULT: 6 check(s) passed, 0 unexpected.
+P01 NoForgery: VERIFIED.
+  TIER 1 (structural provenance): UNBOUNDED  [2]+[3]+[4]
+  TIER 2 (signature-level):       BOUNDED safety [5] (unbounded extension via TIER 1 + honest oracle; notes.md)
+  bounded sanity [1]; vacuity probe [0].

@@ -7,18 +7,43 @@ Research, upstream references, protocol analysis, and primary sources for the [S
 ```
 research/
 ├── shieldedcsv-paper.pdf          # The paper (ePrint 2025/068, 914 KB)
+├── glock-paper.pdf                # Glock: Garbled Locks for Bitcoin (ePrint 2025/1485, Aug 2025)
+├── argo-mac-paper.pdf             # Argo MAC: Garbling with Elliptic Curve MACs (ePrint 2026/049, Jan 2026)
+├── bitvm-paper.pdf                # BitVM: Quasi-Turing Complete Computation (ePrint 2024/1995)
+├── bitvm2-bridge-paper.pdf        # BitVM2: Bridging Bitcoin to Second Layers
+├── bitvm-bridge-research.md       # zkBTC bridge analysis: Glock is the chosen path
 ├── primary-sources/               # Archived full-text articles
 │   ├── blockstream-blog.md        # "Bitcoin's Shielded CSV Protocol Explained" (Dec 2024)
 │   ├── mailing-list.md            # Bitcoin-Dev thread: Nick, Riard, Chen (Sep 2024)
 │   ├── eliel-blog.md              # "My Thoughts on the Shielded CSV Protocol" (Apr 2025)
 │   ├── bitcoin-optech.md          # Bitcoin Optech: Client-Side Validation
 │   └── da-paper.md                # ePrint 2025/569: Data Availability in CSV
-└── upstream/                      # Git submodules of original repositories
-    ├── ShieldedCSV/               # Paper reference code (Rust, MIT)
-    ├── ZeroSync-ZKCoins/          # Functional prototype (our primary upstream)
-    ├── rust-bitcoincore-rpc/      # Bitcoin Core RPC fork for ZKCoins
-    └── BitVM-zkCoins/             # Historical Plonky2 experiments
+├── upstream/                      # Git submodules of original repositories
+│   ├── ShieldedCSV/               # Paper reference code (Rust, MIT)
+│   ├── ZeroSync-ZKCoins/          # Functional prototype (our primary upstream)
+│   ├── rust-bitcoincore-rpc/      # Bitcoin Core RPC fork for ZKCoins
+│   └── BitVM-zkCoins/             # Historical Plonky2 experiments
+├── zkcoins-design/                # Design drafts archived from zk-coins/node (see its README)
+├── benchmarks/                    # Plonky3 spike benchmark results archived from zk-coins/node
+├── spikes/                        # Throwaway research crates
+│   └── plonky3-recursion-spike/   # Plonky3 recursion feasibility spike (from node staging, PRs #212/#214)
+├── community-content/             # Community/research pages archived from zk-coins/docs
+└── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
 ```
+
+## Imported Working Content (2026-06-07)
+
+This repository is the **catch-all for everything research-, design-, and ops-flavoured**
+across the zkCoins project. As part of a repo-hygiene pass, design drafts, the Plonky3
+recursion spike, benchmark write-ups, and community/ops documentation were moved here out
+of `zk-coins/node` and `zk-coins/docs` so those repos can stay focused (node = shippable
+software only; docs = the target-design specification only). Each imported directory has a
+`README.md` documenting its exact provenance and where any relocated cross-references now
+live. Nothing was rewritten — the files are archived verbatim.
+
+## Protocol Status
+
+See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of the Shielded CSV paper against our current implementation, including what's done, what's missing, and the roadmap.
 
 ## The Paper
 
@@ -28,6 +53,19 @@ research/
 - Published: January 2025
 - ePrint: [2025/068](https://eprint.iacr.org/2025/068)
 - Local copy: [shieldedcsv-paper.pdf](shieldedcsv-paper.pdf)
+
+## Bridge Construction (zkBTC path)
+
+For a trustless BTC↔zkCoins bridge, we have committed to **Glock** (Alpen Labs / Liam Eagen) — no BitVM2 intermediate, no federation-V0. See [bitvm-bridge-research.md](bitvm-bridge-research.md) for the analysis and the trade-offs.
+
+| Paper | Authors | Date | Local copy |
+|---|---|---|---|
+| **Glock: Garbled Locks for Bitcoin** | Liam Eagen (Alpen Labs) | Aug 2025 | [glock-paper.pdf](glock-paper.pdf) · [ePrint 2025/1485](https://eprint.iacr.org/2025/1485) |
+| **Argo MAC: Garbling with Elliptic Curve MACs** | Liam Eagen, Ying Tong Lai | Jan 2026 | [argo-mac-paper.pdf](argo-mac-paper.pdf) · [ePrint 2026/049](https://eprint.iacr.org/2026/049) |
+| **BitVM2: Bridging Bitcoin to Second Layers** | BitVM team | 2024 | [bitvm2-bridge-paper.pdf](bitvm2-bridge-paper.pdf) · [bitvm.org/bitvm_bridge.pdf](https://bitvm.org/bitvm_bridge.pdf) |
+| **BitVM: Quasi-Turing Complete Computation** | Lukas Aumayr et al. | 2024 | [bitvm-paper.pdf](bitvm-paper.pdf) · [ePrint 2024/1995](https://eprint.iacr.org/2024/1995) |
+
+Glock and Argo are kept side by side because Robin Linus co-authored Argo and the two constructions are sister directions in the same research line; Glock is the closer-to-mainnet path. BitVM and BitVM2 are kept as the comparison baseline even though we are not building on them.
 
 ## Upstream Repositories
 
@@ -79,7 +117,7 @@ git submodule update --init --recursive
 | Repo | Purpose |
 |---|---|
 | [zk-coins/app](https://github.com/zk-coins/app) | Web application (zkcoins.app) |
-| [zk-coins/server](https://github.com/zk-coins/server) | Rust backend (api.zkcoins.app) |
+| [zk-coins/node](https://github.com/zk-coins/node) | Rust backend / node (api.zkcoins.app) |
 | [zk-coins/docs](https://github.com/zk-coins/docs) | Documentation (docs.zkcoins.app) |
 
 ## License

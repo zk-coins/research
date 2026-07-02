@@ -1,0 +1,245 @@
+================================================================================
+zkCoins 100% Logical Verification Initiative
+CERTIFICATE -- P05 On-chain Privacy / Unlinkability (full on-chain model)
+================================================================================
+
+Property      : P05 On-chain Privacy / Unlinkability.
+Type          : OBSERVATIONAL. Unlinkability proper rests on cryptographic
+                AXIOMS (A3 root/nullifier preimage-resistance, BIP-32-PRF
+                rotating-key unlinkability, A2 nk-secrecy). This certificate
+                does NOT claim those verified; it certifies the machine-checkable
+                COMPOSITION SURFACE -- the on-chain observer projection and the
+                structural/dynamic facts about it the axioms compose with.
+Claim         : A passive chain-only observer of Bitcoin learns from the
+                constant-size BatchInscription ONLY the publisher identity and
+                the accumulator roots/locator/anchor -- NOT amount, asset,
+                sender, receiver, the record count m, any per-spender input
+                count k_j, nor any individual nullifier (Spec Sec. 3.1, 3.5).
+                The publisher identity is the ONLY on-chain link, and it is
+                categorically NOT an account/wallet identity. (Pass-3 audit P5:
+                HIGH for on-chain unlinkability; MEDIUM for end-to-end
+                network-layer privacy -- the latter out of scope, see below.)
+Result        : VERIFIED (observable composition surface).
+                - Dynamic PublisherOnlyLink: UNBOUNDED via the set-projection
+                  inductive invariant (IndInv_P5); bounded history-quantified
+                  form INV_P5 checked length 6.
+                - Structural NoMemberStructureOnChain: by-construction projection
+                  fact, checked bounded length 6 (clearly labelled structural).
+                - Unlinkability proper: AXIOM, quoted and scoped, NOT verified.
+
+Tool          : Apalache 0.58.0  (SMT backend: Z3 4.14.1.0)
+Host          : Apple Silicon (arm64), macOS (Darwin 25.5.0)
+Date          : 2026-06-07
+Spec baseline : zk-coins/docs@ed7fdece (spec-v1.1, On-chain Sec. 3.1/3.5/3.6/
+                3.7/3.10; key hierarchy Sec. 1.2/1.4)
+Model         : property.tla  (module `property`, EXTENDS module/Onchain.tla --
+                the SAME full on-chain machine P02 No-Double-Spend uses, unchanged)
+Runner        : ./verify.sh  (stages Foundations+Assumptions+Onchain)
+
+--------------------------------------------------------------------------------
+The chain-observer projection ChainView (the heart of P05)
+--------------------------------------------------------------------------------
+ChainView(b) is what a passive chain-only observer reads off ONE admitted
+BatchInscription: EXACTLY the five on-chain fields of the 231-byte inscription
+(Sec. 3.5 byte layout):
+    publisherPk        (offset 3,   32B, Pk_p, BIP-340 x-only)
+    prevRoot           (offset 35,  32B, accumulator root)
+    newRoot            (offset 67,  32B, accumulator root)
+    bundleLocator      (offset 99,  32B, Hc over the BatchBundle)
+    blockAnchorHeight  (offset 163,  4B, big-endian u32 height)
+It DROPS the Onchain record's batchNullifiers, memberValidities and anchorOk:
+post-#40 those are BUNDLE-/admission-internal -- the SpendRecords, member
+nullifiers, and AggregateBatchProof live OFF-CHAIN inside the BatchBundle
+(Sec. 3.1, Sec. 4.6); anchorOk is the verifier's own §3.5 scan outcome, not an
+inscribed byte. This split is the post-#40 on-chain reality the projection
+encodes: the footprint is CONSTANT-SIZE and carries no per-member structure.
+
+--------------------------------------------------------------------------------
+DYNAMIC vs STRUCTURAL vs AXIOM (the honest split)
+--------------------------------------------------------------------------------
+DYNAMIC (machine-checked, negatively controllable):
+  PublisherOnlyLink (INV_P5 conjunct 1). For every admitted inscription, its
+  ChainView.publisherPk is a publisher key AND never equals an account identity
+  key (owner = address = H(Pk0), or current_pubkey = rotating Pk_i) of any
+  account behind any on-chain nullifier. This is the §3.5 normative claim "the
+  publisher identity is the only on-chain link", machine-checked. It is genuinely
+  dynamic (relates Admit-produced publisherPk to Admit-committed account keys
+  across the whole history) and negatively controllable (deleting the
+  publisher/account namespace separation breaks it -- see negative control).
+  Proven UNBOUNDED via the set-projection inductive invariant:
+    [P2] base   OnInit => IndInv_P5
+    [P3] step   IndInv_P5 /\ OnNext => IndInv_P5'   (OnNext = PublisherSign
+                                                     \/ Admit \/ Confirm \/ Reorg)
+    [P4] impl   IndInv_P5 => ObservableGuarantee
+  -> the load-bearing fact (no committed nullifier's account key is a publisher
+     key) holds in every reachable state, any number of transitions.
+
+STRUCTURAL (by-construction, clearly labelled -- NOT a tautology dressed as
+dynamic; the P10 vacuity-defect discipline is applied here deliberately):
+  NoMemberStructureOnChain (INV_P5 conjunct 2). The observable projection of
+  every admitted inscription carries EXACTLY the five on-chain fields and NO
+  bundle-only field (batchNullifiers / memberValidities absent from DOMAIN
+  ChainView). This is a property of the PROJECTION FUNCTION, true by
+  construction; it is checked over the reachable space ([P5], length 6) only to
+  confirm the projection is well-formed on every admitted inscription. It is
+  explicitly labelled structural -- it is not exercised by the transition
+  relation and is not the load-bearing dynamic claim.
+
+AXIOM (quoted, scoped, NOT claimed verified):
+  - A3 (root / nullifier preimage-resistance). The model represents a root AS
+    the SET of nullifiers it commits to (A16/RootCommitsSet); on the WIRE roots
+    are 32-byte Poseidon/SMT digests whose preimage is hidden by A3. The
+    set-representation IS the A16/A3 boundary: everything the dynamic invariant
+    reads off the committed set is, on the wire, hidden behind A3.
+  - BIP-32-PRF (rotating-key unlinkability). Each transition uses a fresh
+    hardened-derived Pk_i (Sec. 1.2); without the seed no key path links two
+    transitions. The PRF property of the BIP-32 KDF is the axiom; the model does
+    not re-derive it.
+  - A2 (nk-secrecy). nf = Hc("Nullifier", nk || coin.identifier); without nk the
+    nf is indistinguishable from a random 256-bit digest (Pass-3 P5).
+  - Network-layer hygiene (Pass-3 P5 MEDIUM half): publisher funding/UTXO
+    exposure (§3.8 broadcaster-paid is MAY, not MUST), NIP-44/NIP-59
+    cross-protocol fingerprinting, relay choice, Tor, long-run intersection
+    attacks. These are operational, depend on user behaviour the spec cannot
+    enforce, and are OUT OF SCOPE here.
+
+--------------------------------------------------------------------------------
+"UNBOUNDED" and the Seq variable (honest scope -- same situation as P02)
+--------------------------------------------------------------------------------
+PublisherOnlyLink and NoMemberStructureOnChain both quantify over DOMAIN
+onAdmittedChain. Apalache encodes a Seq with a STATIC capacity, so an inductive
+step that assumes-and-reestablishes a chain-quantified property of ARBITRARY
+length is not one unbounded SMT query (exactly the situation P02 documents for
+its prev_root continuity). We are explicit, mirroring P02's certificate:
+
+  - The DYNAMIC claim is certified UNBOUNDED through its SET-PROJECTION inductive
+    invariant IndInv_P5, whose load-bearing conjunct is the STATE fact "no
+    committed nullifier (onPending \cup onCompleted) has an account key in the
+    publisher namespace". This is preserved by every OnNext action: Admit only
+    adds nullifiers drawn from Nullifiers (whose account keys are the account
+    namespace, disjoint from Publishers by construction, Sec. 1.2); Confirm/
+    Reorg move nullifiers between/out of the zones; PublisherSign touches no
+    nullifier. The inductive step [P3] uses an assignment-form init (IndInvInit)
+    that ASSIGNS every Onchain variable, drawing each set from its powerset and
+    Gen-constructing the sequence (capacity <= 4). Because IndInv_P5 never reads
+    the chain and the set effects of OnNext do not depend on the chain's value,
+    the step is a faithful statement about the SET PROJECTION; the Gen capacity
+    bounds only the bookkeeping witness, never the conclusion.
+  - The full history-quantified forms INV_P5 ([P1]) and the structural
+    projection fact ([P5]) are certified BOUNDED (length 6 = finality depth K).
+
+--------------------------------------------------------------------------------
+Commands (exactly as run by verify.sh; staged with Foundations+Assumptions+
+Onchain; P5ConstInit fixes small finite universes, publisher namespace {1,2}
+disjoint from the account namespace {0})
+--------------------------------------------------------------------------------
+  apalache-mc typecheck property.tla                                                                                # [P0] typecheck
+  apalache-mc check --cinit=P5ConstInit --init=OnInit     --next=OnNext --inv=INV_P5                 --length=6 property.tla  # [P1] bounded observable
+  apalache-mc check --cinit=P5ConstInit --init=OnInit     --next=OnNext --inv=IndInv_P5             --length=0 property.tla  # [P2] base
+  apalache-mc check --cinit=P5ConstInit --init=IndInvInit --next=OnNext --inv=IndInv_P5             --length=1 property.tla  # [P3] step
+  apalache-mc check --cinit=P5ConstInit --init=IndInvInit --next=OnNext --inv=ObservableGuarantee   --length=0 property.tla  # [P4] impl
+  apalache-mc check --cinit=P5ConstInit --init=OnInit     --next=OnNext --inv=NoMemberStructureOnChain --length=6 property.tla  # [P5] structural
+
+--------------------------------------------------------------------------------
+Vacuity probe (the dynamic invariant is asserted over a POPULATED set)
+--------------------------------------------------------------------------------
+A throwaway probe.tla EXTENDS property and asserts
+  NoAccountKeysEverOnChain == AccountKeysOnChain = {}
+checked with
+  apalache-mc check --cinit=P5ConstInit --init=OnInit --next=OnNext \
+    --inv=NoAccountKeysEverOnChain --length=3 probe.tla
+yields The outcome is: Error (exit 12): the reachable space DOES contain admitted
+inscriptions whose committed nullifiers carry account identity keys (a non-empty
+AccountKeysOnChain). PublisherOnlyLink therefore asserts the publisher/account-
+key disjointness over a NON-EMPTY account-key set, not vacuously over {}. The
+probe and its _apalache-out were discarded; the committed model is unchanged.
+
+--------------------------------------------------------------------------------
+Negative control on the FULL model (the namespace separation is load-bearing)
+--------------------------------------------------------------------------------
+A /tmp copy of property.tla (module `propertyNC`) adds a const init NCConstInit
+that builds the smoke nullifiers over an account whose identity key COLLIDES with
+a publisher key:
+  NCCoinId(i) == MkCoinId(CanonicalEmptyAccount(1, 1), MkAssetId(...), i)
+  NCConstInit == Nullifiers = { MkNullifier(0, NCCoinId(i)) : i \in 1..3 }
+              /\ Publishers = 1..2 /\ BundleLocators = 1..2
+i.e. owner = current_pubkey = 1, and 1 \in Publishers -- the §1.2 publisher/
+account namespace separation is DELETED. Checked with
+  apalache-mc check --cinit=NCConstInit --init=OnInit --next=OnNext \
+    --inv=INV_P5 --length=3 propertyNC.tla
+yields The outcome is: Error (exit 12): PublisherOnlyLink (INV_P5 conjunct,
+state invariant 0) VIOLATED at State 2. Trace:
+  State0  empty chain.
+  State1  PublisherSign            -- publisher pk=1 authorises the batch.
+  State2  Admit  publisherPk |-> 1 -- an inscription is admitted whose committed
+                                      nullifier carries owner |-> 1, currentPk
+                                      |-> 1; publisherPk (1) == an account
+                                      identity key (1) => PublisherOnlyLink
+                                      violated. A chain observer reading the
+                                      publisher field would read an account key.
+With the namespace separation present (committed P5ConstInit: account key 0,
+publishers {1,2}), all six verify.sh checks return NoError. The /tmp copy and its
+_apalache-out were discarded; module/Onchain.tla and the committed property.tla
+are unchanged.
+
+--------------------------------------------------------------------------------
+Cross-check vs Pass-3 P5 (Phase-4 input)
+--------------------------------------------------------------------------------
+| P5 half | Pass-3 label | Apalache verdict (this cert) |
+|---|---|---|
+| On-chain unlinkability | HIGH | VERIFIED (observable surface), STRENGTHENED post-#40 |
+| End-to-end network-layer privacy | MEDIUM | OUT OF SCOPE (operational hygiene) |
+
+POST-#40 DELTA (see notes.md for the full paragraph). Pass-3 was written PRE-#40:
+it states the on-chain observer learns k_j (the accepted input-count leak), the
+rotating Pk_i, and the spent nf's from a per-record SpendRecord on-chain surface.
+Post-#40 that surface NO LONGER EXISTS: SpendRecords/nullifiers/k_j moved
+OFF-CHAIN into the BatchBundle, and the chain footprint became the constant-size
+BatchInscription. The redesign STRENGTHENS P5 -- the accepted k_j leak is gone
+from the chain, and the publisher pubkey is a NEW on-chain datum, which is
+exactly what PublisherOnlyLink machine-checks as the sole (non-account) on-chain
+link. The HIGH on-chain bound is therefore confirmed AND strengthened.
+
+================================================================================
+FULL verify.sh TRANSCRIPT (2026-06-07)
+================================================================================
+Apalache version: 0.58.0
+
+==================================================================
+P05 -- On-chain Privacy / Unlinkability (full on-chain model)
+==================================================================
+### [P0] typecheck       property.tla (EXTENDS Onchain)
+>>> [P0] typecheck       property.tla (EXTENDS Onchain): OK
+
+### [P1] bounded OBSERVABLE  OnInit/OnNext |= INV_P5 (length 6)
+The outcome is: NoError
+Checker reports no error up to computation length 6
+>>> [P1] bounded OBSERVABLE  OnInit/OnNext |= INV_P5 (length 6): OK
+
+### [P2] inductive BASE      OnInit => IndInv_P5 (length 0)
+The outcome is: NoError
+Checker reports no error up to computation length 0
+>>> [P2] inductive BASE      OnInit => IndInv_P5 (length 0): OK
+
+### [P3] inductive STEP      IndInv_P5 /\ OnNext => IndInv_P5' (len 1)
+The outcome is: NoError
+Checker reports no error up to computation length 1
+>>> [P3] inductive STEP      IndInv_P5 /\ OnNext => IndInv_P5' (len 1): OK
+
+### [P4] IMPLICATION         IndInv_P5 => ObservableGuarantee (length 0)
+The outcome is: NoError
+Checker reports no error up to computation length 0
+>>> [P4] IMPLICATION         IndInv_P5 => ObservableGuarantee (length 0): OK
+
+### [P5] structural projection  OnInit/OnNext |= NoMemberStructureOnChain (length 6)
+The outcome is: NoError
+Checker reports no error up to computation length 6
+>>> [P5] structural projection  OnInit/OnNext |= NoMemberStructureOnChain (length 6): OK
+
+==================================================================
+RESULT: 6 check(s) passed, 0 unexpected.
+P05 On-chain Privacy: VERIFIED (observable composition surface).
+  Dynamic PublisherOnlyLink: UNBOUNDED set-projection [P2]+[P3]+[P4];
+                             bounded history-quantified INV_P5 [P1].
+  Structural NoMemberStructureOnChain: by-construction, checked [P5].
+  Unlinkability proper rests on AXIOMS A3 / BIP-32-PRF / A2 (see notes.md).
