@@ -36,6 +36,14 @@ specification lives in [zk-coins/docs](https://github.com/zk-coins/docs).
 5. Commit directly to `develop` (this repo is not branch-protected). Commit
    messages: English, concise, *what* not *how*.
 
+## Branches & releases
+
+- `develop` is the working branch — commit to it directly (see rule 5 above).
+- `main` is the released, stable snapshot.
+- On every push to `develop`, an auto-release-PR workflow opens a
+  `Release: develop -> main` PR (unless one is already open). A maintainer
+  merges it to cut a release.
+
 ## Related Repos
 
 - [zk-coins/node](https://github.com/zk-coins/node) — Rust backend.
