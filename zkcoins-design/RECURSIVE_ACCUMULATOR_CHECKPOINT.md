@@ -1,151 +1,295 @@
-# Recursive Accumulator Checkpoints — removing the DA retention wall without leaving Bitcoin
+# Recursive Accumulator Checkpoints — compressing historical verification without hiding the DA boundary
 
-**Status:** Proposal / concept (pre-cryptographic-review)
-**Scope:** the global nullifier accumulator, fresh-sync, and long-term off-chain retention (spec §1.7.10, §2.2, §2.5, §3.6, §3.7)
-**Targets:** `R-D7-3` (unprunable monotonic BatchBundle storage), `P17` (economic sustainability of long-term DA), and the fresh-sync half of `P12` — **not** the live-progress DA problems (see §7).
-**Relation to other proposals:** an alternative to [`ACCUMULATOR_SELF_PUBLISH.md`](./ACCUMULATOR_SELF_PUBLISH.md) (which resolves DA by reverting to on-chain nullifiers, sacrificing constant on-chain size). This proposal keeps the constant-size `BatchInscription` and attacks retention instead. The two are mutually exclusive top-level directions; §8 compares them.
-
----
-
-## 1. TL;DR
-
-The DA problem that hurts zkCoins long-term is **not** "coins can be stolen" (they can't — DA is liveness, never safety) but **"every `BatchBundle` must be retained forever by an unrewarded MUST, and a fresh trustless verifier must fetch and re-verify all of them from genesis."** The project's own concept review calls this the *"most irreversible long-term wall"* (`RISKS.md` R-D7-3) and concedes it is *"only deferred, not removed without a DA layer."*
-
-This proposal argues that conclusion is too pessimistic **for the retention/fresh-sync axis specifically**, and that the cure is already in zkCoins' toolbox:
-
-> Maintain a **rolling recursive proof `Π_n`** that attests, in constant size, that the current accumulator root `R_n` (and anchors-MMR root `A_n`) is the honest genesis-to-`n` fold of every admitted batch. A fresh node verifies **one** proof `Π_c` at a checkpoint `c` instead of replaying `c` batch proofs, downloads a **self-verifying nullifier-set snapshot** (checked against the proven `R_c`), and then only needs the bundles for the small window `(c, n]`. Everything before `c` becomes **discardable by the whole network**.
-
-This uses only primitives zkCoins already ships — the same **cyclic PCD recursion** the `AggregateBatchProof` (`C_batch`) already performs at the intra-batch level, the existing **anchors MMR**, and the Poseidon SMT — and it adds **no auxiliary chain, no token, and no trusted setup** (the proof system is FRI-transparent). It is the "in-house, elegant" path.
-
-It does **not** cure the *live-progress* DA attacks (publish-and-withhold liveness DoS; selective-serving fork) documented in [`../notes/da-problem-zkcoins-analyse.md`](../notes/da-problem-zkcoins-analyse.md). Those are about the availability of the *current* bundle and are out of scope here (§7).
+**Status:** Proposal / concept, pre-cryptographic-review; **blocked on objective live-admission semantics**
+**Scope:** global nullifier accumulator, anchors MMR, fresh sync, and long-term off-chain retention (spec §1.7.10, §2.2, §2.5, §3.6, §3.7)
+**Targets:** reduce the storage and replay costs behind `R-D7-3`/`P17` and the historical half of `P12`; does **not** by itself solve live data availability or remove every long-term DA dependency
+**Relation to other proposals:** potential alternative/complement to [`ACCUMULATOR_SELF_PUBLISH.md`](./ACCUMULATOR_SELF_PUBLISH.md), subject to the prerequisites and pruning gates below
 
 ---
 
-## 2. The problem, precisely
+## 1. Decision summary
 
-Today a fully-trustless (Path-A) verifier must, per spec §3.6 / §3.7:
+A rolling recursive proof can replace verification of all historical `AggregateBatchProof`s with one constant-size verification. A self-checked state package can also replace historical `BatchBundle`s as the source of the current nullifier set and proof-serving indexes.
 
-1. scan every `BatchInscription` (on-chain, cheap, **Bitcoin-DA-guaranteed**),
-2. fetch every `BatchBundle` (off-chain, ~100 KB recursive proof + all `SpendRecord`s each, **DA-fragile**, `k=3`),
-3. verify every `AggregateBatchProof`,
-4. fold each `prev_root → new_root` transition to build the nullifier SMT and the anchors MMR.
+That is valuable **compression**, but it is not yet a complete DA cure:
 
-Step 1 is O(N) but backed by Bitcoin. Steps 2–3 are the wall: **unbounded, DA-fragile, and unrewarded**. The nullifier set itself is unprunable (uniformly-distributed keys, §3.7), so storage grows monotonically and the cost of *becoming* a fresh trustless verifier grows without bound. Rational actors therefore drift to Path-B (trust a node), which **concentrates the nullifier-set custody on a shrinking archival set** — a slow-acting centralization of the very property the project sells as trustless. That erosion, not theft, is the real damage.
+1. zkCoins v1 does not define an availability-independent canonical admission result under selective bundle serving. A checkpoint cannot prove that it folded the *canonical* history until that live rule is fixed.
+2. A Merkle-root-checked snapshot has trustless **integrity**, not guaranteed **availability**. At least one complete copy must remain obtainable.
+3. Existing `CoinProof` bundles do not carry all portable anchoring witnesses needed after their creating `BatchBundle` is deleted.
+4. The anchors MMR still needs enough retained structure to validate historical roots and generate membership/extension proofs.
 
----
-
-## 3. Why the tools already exist
-
-Three existing pieces make this a *lift*, not an invention:
-
-- **`C_batch` inner-mode chaining (§2.2 cl. 4, §2.5).** The batch aggregator is already a cyclic recursive circuit whose inner node consumes **two child `AggregateBatchProof`s** and enforces *"left child's `new_root` == right child's `prev_root`; carry `prev_root`…`new_root` forward."* A chain-level checkpoint proof is **exactly this construction lifted one level**: instead of composing sub-batches within one batch, it composes batches within the whole chain. Same primitive, same public-input shape, same Poseidon SMT transition witness.
-
-- **The anchors MMR (§1.7.10).** An append-only Merkle Mountain Range already accumulates the `member_root` of every `completed` batch, with in-circuit `extends(anr, anr')` **consistency proofs** and `O(log n)` membership proofs. It is currently *derived, not consensus-bearing* — nobody holds a succinct proof that the MMR root is the honest fold; a node still replays to build it. The spec even notes: *"A future version MAY commit the anchors root inside the `BatchInscription`."* The checkpoint proof is the missing succinct attestation over exactly this structure.
-
-- **FRI-transparent recursion.** zkCoins' proofs need **no trusted setup** (only the BitVM bridge verifier uses a Groth16 ceremony, per the roadmap). Adding a recursion layer adds **no ceremony** — unlike a Groth16-based checkpoint, which would.
+Accordingly, this proposal changes the standing verdict from “historical proofs can never be compressed” to “historical proof verification is recursively compressible.” It does **not** change `R-D7-3`/`P17` to “solved” until the prerequisites and pruning gates in §§4–7 are implemented and reviewed.
 
 ---
 
-## 4. Construction
+## 2. Security boundary
 
-### 4.1 The chain-state proof `Π`
+### 2.1 What recursion can prove
 
-Define a cyclic PCD circuit `C_chain` with public inputs `(nf_root, anchors_root, n, chain_commit)` where `n` is the number of admitted batches folded and `chain_commit` binds the ordered sequence of inscribed `(prev_root, new_root, member_root)` triples (e.g. a running Poseidon hash, one absorb per batch).
+Given an ordered sequence of valid `AggregateBatchProof`s, a cyclic circuit can prove in constant size that:
 
-- **Base:** `Π_0` attests the empty state — `nf_root = E₂₅₆`, `anchors_root = anr_empty`, `n = 0`, `chain_commit = ε`.
-- **Step:** `Π_i` consumes `Π_{i-1}` (verified cyclically) **and** batch `i`'s `AggregateBatchProof` (verified under `C_batch`'s verifier data), and enforces:
-  1. `Π_{i-1}.nf_root == batch_i.prev_root` (chain continuity — identical to `C_batch` cl. 4, one level up);
-  2. `batch_i.new_root == Π_i.nf_root` (carry the fold forward);
-  3. the anchors-MMR append of `batch_i.member_root` advances `Π_{i-1}.anchors_root → Π_i.anchors_root` (the existing MMR append gadget);
-  4. `chain_commit` absorbs `(prev_root, new_root, member_root, m)` of batch `i`.
+- every batch transition is valid;
+- each `prev_root → new_root` transition chains from its predecessor;
+- each batch's `member_root` is appended to the anchors MMR;
+- the resulting nullifier root and anchors root equal the proof's public outputs.
 
-`Π_n` is **constant-size and constant-verify-time in `n`** (cyclic recursion, exactly like the per-account proof and the aggregate proof). It attests: *"`nf_root` is the correct SMT fold of a batch sequence whose ordered commitments are `chain_commit`, and `anchors_root` is the matching MMR."*
+This removes O(N) recursive-proof verification for a fresh node.
 
-### 4.2 Binding `Π_n` to Bitcoin
+### 2.2 What recursion cannot prove from the current protocol
 
-`Π_n` proves internal validity but not *"this is the canonical Bitcoin history."* The verifier closes that gap cheaply and **without any off-chain fetch**: it scans the inscription **headers** (on-chain, 231 B each, Bitcoin-DA-guaranteed), recomputes `chain_commit` from the inscribed `(prev_root, new_root, member_root, m)` sequence in canonical order (§3.6 step 4), and checks it equals `Π_n.chain_commit`. Header scanning is the O(N) part that Bitcoin *already* guarantees; what disappears is fetching and verifying the heavy off-chain proofs.
+Proof validity does not establish which of several on-chain candidates is canonical when availability differs by observer. In particular, the current §3.6 state machine permits the following views:
 
-### 4.3 The self-verifying nullifier-set snapshot
+- Node A fetches the first valid candidate `r0 → r1` and admits it.
+- Node B cannot fetch it, remains at `r0`, and later admits `r0 → r2`.
 
-`Π_c` proves the **root** `R_c` is honest, but a Merkle root does not enumerate leaves — and a node still needs the leaf set to (a) build insertion witnesses for new batches and (b) serve Path-B non-membership paths. So the checkpoint is paired with a **snapshot**: the occupied nullifier set (~32 B per `nf` plus sparse-SMT structure) as of batch `c`.
+A checkpointer can build an internally valid proof for either branch. “The proof verifies” therefore does not imply “this is the unique Bitcoin-canonical zkCoins history.” This is the live-DA/selective-serving problem, now inherited by checkpoint selection.
 
-The snapshot's integrity is **self-verifying against the checkpoint-proven `R_c`**: recompute the SMT root from the snapshot and check equality with `Π_c.nf_root`. This is the decisive property — **the snapshot can come from any source, even a fully untrusted one, because a bad snapshot cannot hash to the proven root.** Malicious withholding of the snapshot dissolves: any single honest copy anywhere in the world suffices, and no one can feed you a forged one.
+No ZK circuit can prove that an off-chain object was globally unavailable. A local timeout, replica count, or claim that a fetch failed is not an objective Bitcoin fact.
 
-### 4.4 Fresh-sync with checkpoints
+### 2.3 Narrow safety claim
 
-A node joining at tip `n`, given the latest checkpoint at `c`:
+Loss or withholding of DA does not reveal a spend key or let an attacker forge another user's signature. Partial DA can nevertheless split the global nullifier view and cause cross-view double credit. This document therefore uses:
 
-1. verify `Π_c` (one recursive verification) and bind it to Bitcoin (§4.2) — trust `R_c`, `A_c`;
-2. download + self-check the nullifier snapshot against `R_c` (§4.3);
-3. fetch and verify only the bundles for the window `(c, n]` and fold them normally (§3.6).
+- **custody safety** for “no foreign key/coin forgery”; and
+- **ledger safety** for “honest verifiers agree on the spend/nullifier state.”
 
-Cost drops from **O(N) DA-fragile bundle fetch+verify** to **O(1) proof + O(set) self-verifying snapshot + O(window) bundles.** Batches `≤ c` — their 100 KB proofs and full `SpendRecord`s — are **discardable network-wide**.
-
-### 4.5 The checkpointer role
-
-Extending `Π` is a permissionless, **stateless-in-the-cryptographic-sense** role (like the publisher): the output is publicly verifiable, so a checkpointer is trusted for **liveness only**, never correctness. Two viable cadences:
-
-- **Continuous:** the publisher of batch `i` also extends `Π_{i-1} → Π_i` (folds its own batch in). Makes publishing heavier and *stateful* (needs `Π_{i-1}`).
-- **Epochal (recommended):** an independent checkpointer folds a range `(c, c']` every epoch (e.g. daily / every K batches). Publishers stay light; only the checkpointer carries the rolling proof.
-
-Either way, the proof is checkpointed to relays like any bundle; because it is self-verifying, one honest replica suffices.
+Checkpoints must preserve both; “DA is only liveness” is not a sufficient system-level claim.
 
 ---
 
-## 5. What it removes vs. what it does not — precise ledger
+## 3. Existing primitives and required new work
 
-| Data | Today | With checkpoints |
+The construction can reuse:
+
+- `C_batch`'s cyclic recursion pattern and `prev_root → new_root` chaining;
+- the Poseidon nullifier SMT;
+- the anchors MMR append, membership, and consistency relations;
+- a transparent FRI-based proof system, so no trusted setup is introduced.
+
+It still requires a new circuit and protocol objects. `C_chain` verifies one prior `C_chain` proof plus a `C_batch` proof, updates a separate MMR state, binds Bitcoin-visible header data, and uses its own pinned verifier data. It is not merely a reuse of the existing `C_batch` public-input shape, and its cost must be measured rather than assumed.
+
+---
+
+## 4. Prerequisite: objective live admission
+
+Before a checkpoint can be a trustless replacement for genesis replay, the base protocol must define one canonical result for every on-chain candidate sequence, independent of which relay answered a particular node.
+
+The rule must cover at least:
+
+1. whether scanning continues past a `pending`-due-to-DA inscription;
+2. when such an inscription becomes terminal;
+3. whether a later-arriving earlier bundle triggers rewind and canonical replay;
+4. how two nodes with different bundle observations converge;
+5. what objective evidence makes a candidate admissible or skippable.
+
+A fail-closed local timeout is insufficient: one node may have the bundle and admit while another times out. Exposing `member_root` on-chain is also insufficient: it binds data but does not make the proof/data available.
+
+Candidate design directions, each with an explicit cost/trust trade-off:
+
+| Direction | Objective validity/ordering | DA assumption | Main cost |
+|---|---|---|---|
+| Put sufficient nullifier/validity data on Bitcoin | yes | Bitcoin | larger on-chain footprint |
+| Put the aggregate validity proof on Bitcoin and define deterministic state transitions | proof validity yes; member data/recovery still separate | Bitcoin for proof, off-chain for other data | ~proof-size on-chain cost |
+| External DA certificates/committee | only under the certificate's security assumption | external quorum/network | adds consensus/trust and failure modes |
+| Current `k=3` relay rule + local timeout | **no** | observer-dependent | does not close selective serving |
+
+Until one direction is specified, implemented, and reviewed, a recursive checkpoint is an **acceleration hint**, not a trustless Path-A replacement.
+
+---
+
+## 5. Checkpoint construction after the prerequisite is met
+
+### 5.1 Bitcoin-visible admission commitment
+
+The current `BatchInscription` contains:
+
+`(publisher_pubkey, prev_root, new_root, bundle_locator, block_anchor, signature)`.
+
+It does **not** contain `member_root` or `m`; those values exist only behind:
+
+`bundle_locator = Hc("BatchBundle", prev_root ‖ new_root ‖ u32-be(m) ‖ member_root)`.
+
+Therefore a fresh verifier cannot recompute a commitment over on-chain `(prev_root, new_root, member_root, m)` tuples without fetching the historical bundles. The checkpoint must instead bind exact Bitcoin-visible data.
+
+Define for every admitted inscription:
+
+```text
+header_digest_i = Hc(
+  "ChainHeader/v1",
+  network_tag,
+  bitcoin_block_hash,
+  bitcoin_height,
+  reveal_tx_index,
+  reveal_txid,
+  serialize(BatchInscription_i)
+)
+
+chain_commit_i = Hc("ChainFold/v1", chain_commit_{i-1}, header_digest_i)
+```
+
+The location fields prevent the same valid inscription from being transplanted to a different position or network. A fresh verifier scans Bitcoin and recomputes these digests from on-chain bytes.
+
+**Important:** the verifier must know which headers were *admitted*. Under zkCoins v1 that classification still depends on off-chain availability. Section 4 must therefore be resolved first, or the commitment must cover every discovered candidate and `C_chain` must prove the protocol's objective admit/reject transition for each one. “Unavailable to this checkpointer” cannot be a provable reject reason.
+
+### 5.2 `C_chain`
+
+After canonical admission is objective, define `C_chain` with public inputs:
+
+`(nf_root, anchors_root, admitted_count, chain_commit, checkpoint_height)`.
+
+- **Base:** empty SMT root, empty anchors root, count `0`, empty fold commitment.
+- **Step:** verify `Π_{i-1}` and batch `i`'s `AggregateBatchProof`, then enforce:
+  1. prior `nf_root == batch.prev_root`;
+  2. output `nf_root == batch.new_root`;
+  3. `Hc("BatchBundle", prev_root ‖ new_root ‖ u32-be(m) ‖ member_root)` equals the on-chain `bundle_locator` in the witnessed inscription;
+  4. publisher signature/S2C and every other admission condition not already made objective outside the circuit are verified consistently;
+  5. `member_root` is appended to the prior anchors MMR root;
+  6. `chain_commit` absorbs the exact `header_digest_i`;
+  7. only batches beyond the protocol finality depth are folded.
+
+Whether Bitcoin header/transaction inclusion is checked inside `C_chain` or by the external verifier must be fixed in the security specification. If external, the verifier scans Bitcoin and compares the complete ordered `chain_commit`; if internal, `C_chain` needs an authenticated Bitcoin-header/inclusion relation and its assumptions must be explicit.
+
+The recursive output can be constant-size and constant-verify-time in the admitted batch count. Proving time remains at least linear in newly folded batches.
+
+### 5.3 Checkpoint package
+
+A usable checkpoint is not only `Π_c`. It is a versioned manifest:
+
+```text
+CheckpointPackage_v1 = {
+  network_tag,
+  checkpoint_height,
+  checkpoint_block_hash,
+  admitted_count,
+  chain_commit,
+  nf_root,
+  anchors_root,
+  chain_proof,
+  nullifier_snapshot_hash,
+  anchors_index_hash,
+  completed_batch_index_hash,
+  format_version
+}
+```
+
+The referenced payloads are:
+
+- **nullifier snapshot:** occupied nullifiers plus canonical SMT encoding sufficient to recompute `nf_root` and serve new insertion/non-membership witnesses;
+- **anchors proof-serving index:** enough MMR leaves/internal nodes to validate historical `anchors_root`s and generate membership/extension proofs;
+- **completed-batch index:** maps Bitcoin-visible admitted headers/`bundle_locator`s to MMR positions and `member_root`s, authenticated to the proven state.
+
+Every encoding, domain tag, ordering rule, and hash must be normative. A root match gives integrity; completeness follows only if recomputing the specified structure from the full payload yields the proven root.
+
+### 5.4 Availability and discovery
+
+The package and all referenced payloads remain DA objects. “Any single honest copy suffices” means a malicious source cannot forge them; it does not guarantee a copy exists or will answer.
+
+Before pruning source bundles, the protocol needs:
+
+- at least `k` independent durable holders for the complete package;
+- authenticated discovery of the latest final checkpoint;
+- a retention/incentive policy for snapshots and MMR indexes;
+- rebuild rules from the previous durable checkpoint;
+- optional erasure coding/chunking with a full-root/completeness check;
+- a maximum checkpoint window so the uncheckpointed bundle tail is bounded.
+
+The nullifier snapshot remains O(total nullifiers), approximately 32 bytes per occupied key plus structure. It grows forever. Checkpointing removes historical proof replay and can reduce bytes substantially, but does not make Path-A state O(1) or remove the long-term storage economy.
+
+---
+
+## 6. Coin portability and pruning gate
+
+Existing `CoinProof` bundles contain the creating proof, output inclusion proof, an optional `anchor_hint`, and the creating proof's anchors opening. The receive path may still fetch from the historical `BatchBundle`:
+
+- the creating `SpendRecord`;
+- its member path to `member_root`;
+- evidence that this `member_root` belongs to a completed admitted batch;
+- MMR consistency evidence for historical `anchors_root`s.
+
+Deleting every pre-checkpoint `SpendRecord` can therefore make a long-offline recipient unable to verify/fold an otherwise valid coin. This is a spendability/recovery regression, not merely a loss of a redundant seed scan.
+
+Before batch pruning, define a portable anchoring witness, for example:
+
+```text
+PortableAnchorWitness_v1 = {
+  creating_spend_record,
+  batch_member_root,
+  member_path,
+  batch_inscription_id,
+  mmr_leaf_index
+}
+```
+
+Together with `Π_c`, the authenticated completed-batch/MMR indexes, and a generated membership/extension proof, this must let a fresh node perform every §2.3.3/clause-10 check without the original `BatchBundle`.
+
+Required migration rules:
+
+1. New `CoinProof` deliveries include or receive an ACK-tracked follow-up containing the portable witness once their batch is known.
+2. Existing coins created before activation retain access to their historical BatchBundles or undergo witness refresh.
+3. The anchors index remains available long enough to generate proofs for dormant coins and historical `anchors_root`s.
+4. A BatchBundle is prunable only after its aggregate validity is covered by a final checkpoint **and** the protocol's portable-witness obligations for its members are satisfied.
+
+Because a publisher cannot necessarily prove that every recipient has durably received its witness, the exact pruning condition and responsibility split among sender, recipient, publisher, and archival nodes is an open protocol decision. Until it is resolved, v1 BatchBundles remain non-prunable.
+
+---
+
+## 7. Precise remove/retain ledger
+
+| Data | Potential result after all gates | Remaining obligation |
 |---|---|---|
-| Own `CoinProof` bundles | retain forever (= key custody) | **unchanged** — this is self-custody, not a network burden |
-| Historical `AggregateBatchProof`s (100 KB × N) | fetch+verify all on fresh sync; retain forever | **discardable ≤ c**; verify one `Π_c` instead |
-| Historical `SpendRecord`s (for verification) | retain forever | **discardable ≤ c** for consensus |
-| Nullifier **set** (32 B × count) | held by every Path-A node, unprunable | still needed, but **snapshotted + self-verifying** → sourceable from anywhere, withholding-proof |
-| Bundles in window `(c, n]` | — | retain until next checkpoint (bounded) |
+| Historical `AggregateBatchProof`s | replaceable by `Π_c` | checkpoint proof must be available and canonically bound |
+| Historical `SpendRecord`s in public BatchBundles | conditionally prunable | every live/dormant coin needs a portable copy/witness |
+| Nullifier set | not prunable by age | snapshot remains O(total nullifiers) and must be served |
+| Anchors MMR | large bundle payloads removable | proof-serving index/historical consistency data remains |
+| Completed-batch metadata | compressible/authenticatable | mapping to headers, locators, member roots, and MMR positions remains |
+| Bundles after checkpoint | bounded by cadence | must remain available until a later final checkpoint |
+| Own `CoinProof`/state bundles | unchanged custody data | owner/replicas retain them |
 
-**Does not solve:**
-
-- **Seed-only backup recovery** (§4.5 recovery): re-scanning old bundles to recognise one's *own* `SpendRecord`s. Discarding bundles `≤ c` removes this **backup** path — but primary recovery is `CoinProof` self-delivery to one's own relays (§4.2), which is independent. Honest cost: the redundant recovery path narrows to "since last checkpoint." Mitigable: a wallet can self-archive its own historical `SpendRecord`s (small, self-interested), or checkpoints can retain a per-account detection index.
-- **Live-progress DA** (publish-and-withhold; selective-serving fork): these concern the *current* bundle's availability and are orthogonal (§7).
-
----
-
-## 6. Does this rebut `P12`'s "impossibility requires on-chain nullifiers"?
-
-`GAPS_AGAINST_P1_P10.md` (P12) argues accumulator-progress verifiability by anyone is impossible-to-guarantee without on-chain nullifiers. The checkpoint construction narrows that claim for the **historical** axis: you do **not** need nullifiers on-chain to give a late joiner everything it needs, if you have (1) **Bitcoin-guaranteed** availability of the *root/header* sequence (already true — it's in the inscriptions), (2) a **succinct validity proof** that the root is the honest fold (`Π`), and (3) a **self-verifying** leaf snapshot (checkable against the proven root, hence trustless from any source). That triple reconstructs the "anyone can obtain and verify the state" property that on-chain nullifiers provide — **for history**. It does *not* rebut P12 for the **live tip** (the current batch still gates on its bundle). So P12's residual shrinks from "all of history + the tip" to "the tip only." That is a real reduction, and it is the honest limit of the claim.
+This is a meaningful reduction from “all proofs + all records + all state forever” to “current state + compact authenticated indexes + per-coin custody witnesses + a bounded tail.” It is not zero DA and not constant total storage.
 
 ---
 
-## 7. Out of scope (do not overclaim)
+## 8. Failure and adversarial test matrix
 
-The two *live-progress* attacks in [`../notes/da-problem-zkcoins-analyse.md`](../notes/da-problem-zkcoins-analyse.md) — **publish-and-withhold** (§3.6 step 5 precedes the fail-able steps, so a locator to a never-served bundle hangs `pending` forever and, under serial commitment, can freeze anchoring for a few dollars) and **selective serving** (a valid bundle shown to only part of the network → accumulator fork) — are about the *current* bundle and are **not** addressed here. They need their own fix (e.g. a fail-closed timeout on unfetchable locators, or on-chain member-root commitment). This proposal is strictly about **retention and fresh-sync**.
+The design is not ready for a cryptographic go/no-go until an executable model or conformance harness covers:
+
+| Case | Required invariant |
+|---|---|
+| valid first batch served only to half the nodes | all conforming nodes eventually select one root or halt identically |
+| earlier DA-pending batch appears after a later batch | deterministic rewind/replay/terminal-state result |
+| locator never resolves | bounded, identical protocol result; no observer-local fork |
+| two valid batches race on one `prev_root` | Bitcoin-order winner is unique under the objective admission rule |
+| checkpointer omits an earlier candidate | verifier rejects the checkpoint |
+| checkpointer proves a valid non-canonical branch | verifier rejects the checkpoint |
+| checkpoint/snapshot withheld | old checkpoint recovery path is specified; no false availability claim |
+| snapshot truncated or has duplicate/missing keys | root/completeness verification rejects it |
+| latest checkpoint proof lost | rebuild succeeds from a defined prior durable checkpoint and retained tail |
+| checkpoint near a reorg | finality lag prevents folding unstable admissions |
+| recipient offline across several checkpoints | portable witness still permits receive/fold |
+| historical `anchors_root` presented to fresh node | MMR index produces a verifiable consistency proof |
+| mixed software versions | activation/version rules prevent divergent admission |
+
+Formal properties should extend the existing per-node accumulator model rather than assume uniform bundle availability.
 
 ---
 
-## 8. Comparison to the alternatives
+## 9. Implementation sequence
 
-| Approach | Constant on-chain size | Removes retention wall | Bitcoin-only | Token/consensus | Trusted setup |
-|---|---|---|---|---|---|
-| **Recursive checkpoint (this)** | ✅ keeps `BatchInscription` | ✅ history discardable ≤ c | ✅ | none | none (FRI) |
-| Revert to on-chain nullifiers ([`ACCUMULATOR_SELF_PUBLISH.md`](./ACCUMULATOR_SELF_PUBLISH.md)) | ❌ per-tx bytes return | ✅ Bitcoin holds nullifiers | ✅ | none | none |
-| Paid pinning / storage-fee market | ✅ | ⚠️ deferred, not removed | ✅ | needs a fee/market primitive | none |
-| Auxiliary-chain DA (ePrint 2025/569) | ✅ | ✅ | ❌ breaks "not a sidechain" | aux-chain consensus | varies |
-
-The checkpoint is the only row that keeps **both** constant on-chain size **and** the Bitcoin-only positioning while genuinely removing (not deferring) the retention wall.
-
----
-
-## 9. Open problems (honest, for cryptographic review)
-
-1. **Checkpointer liveness/incentive.** If the latest `Π` is lost, rebuilding requires replaying from the last durable checkpoint (needs bundles back to it). So DA shifts from "all bundles" to "latest `Π` + bundles since it" — **much** smaller, but not literally zero. Needs the same archival-incentive thought as bundles, on a far smaller object.
-2. **Reorg composition.** `Π` must only fold `completed` (≥6-conf, §3.9-stable) batches; a checkpoint at finality depth is reorg-safe by the same assumption the anchors MMR already relies on. Needs explicit statement that checkpoints lag the tip by ≥ finality.
-3. **Proving throughput.** One recursive fold per batch (epochal: per range). Constant output size (~100 KB like `AggregateBatchProof`); the question is sustained prover cost — the `plonky3` benchmarks (`../benchmarks/`) are the place to project it.
-4. **Snapshot format + transport.** Compact sparse-SMT snapshot encoding, incremental snapshots between checkpoints, and the `/v1/` service to serve/verify them.
-5. **Interaction with account anchors (§2.1 cl. 10).** Receives prove `extends` against the anchors MMR; a checkpoint that lets nodes drop pre-`c` structure must preserve the ability to serve `extends`/membership for any historical `anchors_root` a live coin might still reference. Likely fine (the MMR peaks + proven `A_c` suffice), but must be shown.
+1. Specify and model objective live admission, late bundle arrival, and convergence.
+2. Choose the Bitcoin/external-DA trade-off and update the base protocol.
+3. Specify `header_digest`, `chain_commit`, activation, finality, and reorg rules byte-for-byte.
+4. Specify checkpoint package and canonical snapshot/MMR-index formats.
+5. Specify `PortableAnchorWitness_v1` and migration/pruning obligations.
+6. Build a recursion spike using real `AggregateBatchProof`s; measure fold time, verification time, proof size, snapshot size, MMR-index size, and rebuild bandwidth.
+7. Run the adversarial test matrix and independent cryptographic review.
+8. Only then change `R-D7-3`/`P17` verdicts or permit network-wide pruning.
 
 ---
 
 ## 10. Verdict
 
-The recursive-checkpoint path is **conceptually sound, uses only in-house primitives, and changes the standing verdict on the project's single most-irreversible long-term wall** (`R-D7-3`) from *"only deferred"* to *"removable for history without an auxiliary DA layer."* It does not touch the safety core, does not require a token or a foreign chain, and adds no trusted setup. The costs are honest and bounded: a small residual DA dependency on the latest proof, a narrowed seed-only backup-recovery path, and prover cost to be measured. It is the highest-leverage response to the DA criticism because it converts the sharpest external attack surface into a differentiator using tools zkCoins already ships.
+Recursive accumulator checkpoints are a promising way to compress historical verification and remove the need to retain every old aggregate proof. They preserve constant-size checkpoint verification and require no trusted setup.
 
-**Recommended next step:** a `plonky3` spike (mirroring `../spikes/plonky3-recursion-spike/`) that folds K real `AggregateBatchProof`s into one `C_chain` proof and measures fold-time + verify-time + snapshot size, to convert this concept into a go/no-go.
+They do **not**, in the current zkCoins v1 protocol, prove a unique canonical history under selective DA; a snapshot is not withholding-proof; and existing coin/anchors witnesses are insufficient for unconditional BatchBundle deletion. The proposal should proceed as a research spike only after objective live admission is designed. Until all pruning gates pass, the honest claim is:
+
+> Checkpoints can substantially reduce historical verification and storage, but they shift and restructure — rather than eliminate — zkCoins' long-term data-availability obligations.

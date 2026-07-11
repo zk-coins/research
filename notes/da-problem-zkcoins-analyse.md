@@ -14,26 +14,47 @@ Zurück zu [[da-paper|ePrint 2025/569]] · Auslöser: Kritik der Paper-Autoren a
 
 ## Kernbefund
 
-Das DA-Problem ist für zkCoins v1 **real und kein Randthema**. Das Shielded-CSV-Paper schreibt jeden Nullifier (64 B, selbst-authentifizierend via Half-Aggregated-Signatur) auf Bitcoin — dadurch ist die komplette Double-Spend-Datenbasis chain-garantiert verfügbar. zkCoins v1 ersetzt das durch eine konstante 231-B-Inscription plus off-chain `BatchBundle` (k=3-Replikation). Damit hängt die Verifizierbarkeit jedes Batches an Off-chain-Verfügbarkeit — mit drei Eskalationsstufen:
+Das DA-Problem ist für zkCoins v1 **real und kein Randthema**. Das Shielded-CSV-Paper schreibt jeden Nullifier (64 B, selbst-authentifizierend via Half-Aggregated-Signatur) auf Bitcoin — dadurch ist die komplette Double-Spend-Datenbasis chain-garantiert verfügbar. zkCoins v1 ersetzt das durch eine konstante 231-B-Inscription plus off-chain `BatchBundle` (`k=3`-Replikation). Damit hängt die Verifizierbarkeit jedes Batches an Off-chain-Verfügbarkeit.
+
+Dabei müssen zwei Sicherheitsbegriffe getrennt werden:
+
+- **Custody safety:** DA-Verlust verrät keinen Spend-Key und erlaubt niemandem, einen fremden Coin kryptographisch zu signieren.
+- **Ledger safety:** partielle DA kann ehrliche Nodes zu unterschiedlichen Nullifier-Wurzeln führen. Dann kann derselbe Coin in zwei Sichten als unterschiedlich ausgegeben/unspent gelten und Empfänger können wirtschaftlich doppelt gutschreiben.
+
+„DA ist nur Liveness, nie Safety" ist deshalb nur für den engen Custody-Begriff korrekt, nicht für die Konsistenz des zkCoins-Ledgers.
 
 ## Drei Szenarien
 
-### 1. Akzidenteller Bundle-Verlust (dokumentiert, operativ beherrschbar)
-Spec §4.6/§4.8 (store-everything, k=3) + risks.md decken das ab. Universeller Verlust erfordert Simultanausfall aller ehrlichen Scanner. Restrisiko: Retention-Free-Rider (nichts bezahlt Scanner für fremde Bundles). Einstufung: echt, aber unwahrscheinlich.
+### 1. Akzidenteller Bundle-Verlust
 
-### 2. Publish-and-Withhold — Liveness-DoS (NICHT adressiert, billig)
-§3.6 Step 5 (Bundle-Fetch) liegt **vor** den Verifikationssteps 6–7, und nur Steps 2–4/6/7 können zu `failed` führen. Eine Inscription mit gültiger Struktur, gültiger BIP-340-Signatur, `prev_root` = aktueller Tip und einem **Locator auf ein nie existierendes Bundle** kann daher nie `failed` werden — sie hängt ewig in `pending`. Wegen des seriellen Accumulators (§3.4 Sequential Commitment) kann kein Scanner deterministisch entscheiden, ob eine spätere Inscription auf demselben `prev_root` stale ist, solange die frühere pending ist → strikte Auslegung: **netzweiter Anchoring-Freeze**. Kosten des Angriffs: ~318 vB (wenige Dollar), kein Proving, keine Coins, beliebig wiederholbar, permissionless.
+Spec §4.6/§4.8 (`store everything`, `k=3`) reduziert die Wahrscheinlichkeit, beseitigt sie aber nicht. Universeller Verlust erfordert den Ausfall oder die Nichtkooperation aller verbleibenden Halter. Das Langzeitproblem ist ökonomisch: Niemand wird dafür bezahlt, fremde, monoton wachsende Batch-Daten dauerhaft zu speichern und zu servieren.
 
-### 3. Selective Serving — Konsens-Split mit Double-Credit-Potenzial (schwerste Stufe)
-Ein Publisher mit *gültigem* Batch served das Bundle nur einem Teil des Netzes. Teil A admittiert r0→r1, Teil B bleibt bei r0 und admittiert später r0→r2. Beide folgen der Spec; §3.6-Determinismus („identical state") setzt uniforme Bundle-Verfügbarkeit voraus — genau die verletzt der Angreifer. Ergebnis: permanenter Accumulator-Fork; ein nur auf Seite A nullifizierter Coin ist auf Seite B weiter ausgebbar → **Cross-View-Double-Credit** bei Empfängern der B-Seite. risks.md nennt den Fork („soft fork between nodes") nur als Randnotiz.
+### 2. Publish-and-Withhold — billige State-Machine-Ambiguität
 
----
+§3.6 Step 5 lässt eine syntaktisch gültige Inscription mit aktuellem `prev_root`, aber unerreichbarem Bundle in `pending`. Was danach mit einer späteren Inscription auf demselben `prev_root` geschieht, ist nicht vollständig spezifiziert:
 
-## Zwei Achsen — und was davon lösbar ist
+- **Nicht-blockierende Auslegung:** Da das erste Bundle nicht verifiziert und der Root nicht angewendet wurde, bleibt der `current admitted root` bei `r0`; eine spätere verfügbare Inscription `r0 → r2` kann Step 4 passieren. Beim späteren Retry muss die ältere Inscription neu gegen den inzwischen aktuellen Root geprüft und stale/failed werden. Diese Rewind-/Retry-Semantik steht nicht normativ in der Spec.
+- **Blockierende Auslegung:** Der Scanner wartet aus kanonischer Ordnungsstrenge auf die frühere Inscription. Dann kann ein Locator auf ein nie existierendes Bundle das Anchoring für ungefähr die Kosten eines Commit/Reveal-Paars einfrieren.
 
-Wichtige Trennung, die in der öffentlichen Kritik verwischt: das DA-Problem hat **zwei getrennte Achsen**, und nur eine ist mit protokoll-eigenen Mitteln entfernbar.
+Ein garantierter netzweiter Freeze ist aus dem aktuellen Text daher **nicht bewiesen**. Bewiesen ist eine kritische, billig triggerbare Ambiguität: konforme Implementierungen können sich bei Retry, Supersession und später Bundle-Verfügbarkeit unterschiedlich verhalten. Die Spec muss festlegen, ob nachfolgende Kandidaten verarbeitet werden, wann ein DA-pending Kandidat terminal wird und ob ab diesem Punkt deterministisch replayt wird.
 
-- **Live-Progress-Achse (Szenarien 2 + 3 oben):** Verfügbarkeit des *aktuellen* Bundles. Withhold-DoS und Selective-Serving-Fork. Braucht eigene Fixes (Fail-closed-Timeout auf unfetchbare Locator; On-chain-`member_root`-Commitment). **Nicht** durch Checkpointing gelöst.
-- **Retention-/Fresh-Sync-Achse (Szenario 1 + `R-D7-3`/`P17`):** ewige, unbelohnte Aufbewahrung *aller* historischen Bundles + O(N)-Genesis-Replay für neue trustless-Verifier. Der eigentliche Langzeit-Schaden ist nicht Diebstahl, sondern **schleichende Zentralisierung des Verifier-Sets**, weil frische Full-Verification unbegrenzt teurer wird.
+### 3. Selective Serving — Root-Split mit Double-Credit-Potenzial
 
-Die Retention-Achse ist **mit zkCoins' eigenem PCD-Werkzeugkasten lösbar**, ohne Hilfskette, Token oder Trusted Setup — Konzept ausgearbeitet in [`../zkcoins-design/RECURSIVE_ACCUMULATOR_CHECKPOINT.md`](../zkcoins-design/RECURSIVE_ACCUMULATOR_CHECKPOINT.md): ein rollender rekursiver Beweis der Akkumulator-Progression + selbst-verifizierender Nullifier-Snapshot lässt das Netz Pre-Checkpoint-Bundles verwerfen. Damit verschiebt sich der Concept-Review-Befund zu `R-D7-3` von „nur aufgeschoben" zu „für die Historie entfernbar, ohne DA-Layer". Der eigene Review listet „epoch checkpoints to drop pre-checkpoint bundles; accumulator snapshotting" bereits als Stichpunkt — dort ist es ausgearbeitet und mit dem bestehenden `C_batch`/Anchors-MMR-Stack verbunden.
+Ein Publisher mit einem gültigen Batch serviert das Bundle nur einem Teil des Netzes. Teil A admittiert `r0 → r1`; Teil B bleibt bei `r0` und kann später `r0 → r2` admittieren. A verwirft `r0 → r2` als stale, B akzeptiert es. Beide Entscheidungen folgen ihrer lokalen §3.6-Sicht.
+
+Solange das erste Bundle B vorenthalten wird — oder solange die Spec keinen deterministischen historischen Replay bei später Verfügbarkeit verlangt — bleiben die Ansichten gespalten. Ein in Sicht A nullifizierter Coin kann in Sicht B weiter als unspent gelten. Ein Angreifer, der seine eigenen Coins und einen Publisher kontrolliert, kann damit zwei individuell gültige, aber widersprüchliche Ausgaben platzieren und Empfänger in verschiedenen Sichten zu **Cross-View-Double-Credit** bewegen. Das ist kein Diebstahl fremder Schlüssel, aber ein Ledger-Safety- und wirtschaftlicher Verlustfall.
+
+## Warum einfache Fixes nicht reichen
+
+- Ein lokaler oder wall-clock-basierter **Timeout** macht unterschiedliche Beobachtungen nicht objektiv: Nodes mit Bundle admittieren, Nodes ohne Bundle timeouten.
+- Ein explizites on-chain **`member_root`** verbessert die Bindung, beweist aber weder Bundle-Verfügbarkeit noch die Gültigkeit von `prev_root → new_root`.
+- `k=3` und ACKs sind operative Wahrscheinlichkeitsmaßnahmen. Ein bösartiger Publisher kann die vorgeschriebene Replikation behaupten/umgehen; Bitcoin erzwingt sie nicht.
+
+Eine echte Live-DA-Lösung braucht eine **für alle Nodes objektiv identische Admission-Regel**. Mögliche Richtungen sind: ausreichend Validitäts-/Nullifier-Daten auf Bitcoin, eine explizite externe DA-Annahme mit prüfbarem Zertifikat und klarer Trust-Grenze oder ein Protokoll-Redesign, das eine nicht verfügbare Transition nicht zum globalen Sequenzpunkt macht. Ein Timeout oder Hash-Commitment allein genügt nicht.
+
+## Zwei Achsen
+
+- **Live-Progress/Ledger-Safety:** Verfügbarkeit des aktuellen Bundles, deterministische Admission, Selective Serving und spätes Replay. Muss vor einem trustless Checkpoint-Protokoll gelöst werden.
+- **Retention/Fresh-Sync:** ewige Aufbewahrung und Genesis-Replay historischer Bundles. Rekursive Checkpoints können Proof-Verifikation und gespeicherte Daten stark komprimieren, verschieben die DA-Pflicht aber auf Snapshots, Checkpoint-Proofs, MMR-Indizes und coin-spezifische Anchoring-Witnesses.
+
+Das überarbeitete Konzept in [`../zkcoins-design/RECURSIVE_ACCUMULATOR_CHECKPOINT.md`](../zkcoins-design/RECURSIVE_ACCUMULATOR_CHECKPOINT.md) behandelt Checkpoints deshalb als **historische Kompression mit expliziten Voraussetzungen**, nicht als bereits vollständige Entfernung von `R-D7-3`/`P17`.
