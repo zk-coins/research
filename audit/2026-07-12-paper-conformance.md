@@ -16,6 +16,8 @@ This document is intended to be stable, reviewable and linkable. It separates:
 
 It is not an implementation audit and not a cryptographic audit report. It is a source-to-specification conformance review from ten expert perspectives.
 
+Selected remediation proposal: [`zk-coins/docs#96`](https://github.com/zk-coins/docs/pull/96). It converts the findings below into one coherent safety-first v3 design, exact specification edit map, and testnet/mainnet acceptance gates.
+
 ## 0. Kurzfassung auf Deutsch
 
 Die aktuelle zkCoins-Spezifikation übernimmt den CSV/PCD-Kern der beiden Ursprungsarbeiten, ist aber **keine konstruktionsgleiche Implementierung**. Sie ersetzt unter anderem die Account-State-Schnorr-Nullifier, die on-chain `AggregateNullifier`, den ToS-Akkumulator, das Fee-Verfahren und die Reorg-Behandlung. Dafür führt sie einen seriellen globalen SMT, off-chain `BatchBundle`s, rekursive Publisher-Aggregation, eigene per-Coin-Nullifier und eine neue Recovery-/Transport-Schicht ein.
