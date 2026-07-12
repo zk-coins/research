@@ -1,9 +1,29 @@
 # Self-Publishing and the Accumulator Trilemma — Design Decision
 
-**Status:** Proposal / decision record
+**Status:** Accepted (2026-07-12)
 **Scope:** the global nullifier accumulator and the on-chain publishing layer (spec §3.1, §3.4, §3.6, §3.7, §3.10)
 **Resolves:** the publisher-contention problem (`docs#56`; risks `R-D2-5`, `R-D2-8`, `R-D7-2`)
 **Requirement driving this:** *every node must be able to publish its own transactions without competitive pressure* (mandatory).
+
+---
+
+## Decision (2026-07-12)
+
+**Decision criterion (set by the project owner).** zkCoins follows the original papers — the zkCoins gist and *Shielded CSV* ([ePrint 2025/068](https://eprint.iacr.org/2025/068)). A deviation from the papers is acceptable **only if** it is (a) proven safe beyond reasonable doubt **and** (b) documented crystal-clearly in the [`zk-coins/docs`](https://github.com/zk-coins/docs) specification repo. Both conditions are required; neither alone suffices.
+
+**Assessment against that bar.** The `docs#40` batched accumulator — a constant **231-byte `BatchInscription`** committing the accumulator's `prev_root → new_root` transition, with nullifiers moved off-chain into the `BatchBundle` — does **not** clear the "proven safe beyond reasonable doubt" bar today:
+
+- `docs#62` (*fork-or-halt*: a pending-DA inscription vs. a later inscription re-using the same `prev_root`) is **open**, with no objective, availability-independent live-admission rule that keeps two honest nodes convergent under withheld bundles.
+- The companion `zkcoins-design/RECURSIVE_ACCUMULATOR_CHECKPOINT.md` (`research#20`, in review) is itself explicitly **"blocked on objective live-admission semantics"** — the same missing prerequisite.
+- §3 of this record derives the withholding safety break **formally** (red-team finding **F2**): off-chain nullifiers plus client-side first-occurrence let a selective-withholding attacker drive two honest nodes to opposite spend decisions — a soundness break, not merely a liveness stall.
+
+**Decision.** The recommendation of this record is **accepted as the plan of record**: revert the accumulator design to the paper model — **on-chain half-aggregated nullifiers**, **client-side first-occurrence rebuild**, and **conditional NAV** for reorg safety (see §6–§7).
+
+**Batched design retired to research.** The batched, constant-footprint design is **retired to the research track**. It may return to the specification only via a **proven, objective admission design** — the opt-in coordinator lane of §9, and the prerequisites enumerated in `zkcoins-design/RECURSIVE_ACCUMULATOR_CHECKPOINT.md` (`research#20`, in review) — and only once that design is **documented crystal-clearly in `zk-coins/docs` before any spec adoption**.
+
+**Implementation reality already matches this decision.** No revert of shipped code is required: the node's current architecture **inscribes per transaction** and **rebuilds global state from chain data alone** (`ALIASING.md` records the current on-chain object as "a full per-transaction commitment, ~177 bytes"); **no code implements the batch model** — `BatchInscription`/`BatchBundle` appear nowhere in [`zk-coins/node`](https://github.com/zk-coins/node) — and the engineering roadmap (`ROADMAP.md` → *Current Focus: Decentralization*) already targets the paper constructs: the **nullifier accumulator** (S2), **conditional NAV** (S3), **permissionless publisher batching** (S7), and the **half-aggregate-Schnorr** nullifier work (the paper-derived suite landing with S2/S3).
+
+**Follow-up.** The specification revert will be tracked in a `zk-coins/docs` issue; `docs#56` (publisher contention) and `docs#62` (fork-or-halt) are expected to be **closed by that revert**.
 
 ---
 
