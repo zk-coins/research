@@ -16,7 +16,9 @@ This document is intended to be stable, reviewable and linkable. It separates:
 
 It is not an implementation audit and not a cryptographic audit report. It is a source-to-specification conformance review from ten expert perspectives.
 
-Selected remediation proposal: [`zk-coins/docs#96`](https://github.com/zk-coins/docs/pull/96). It converts the findings below into one coherent safety-first v3 design, exact specification edit map, and testnet/mainnet acceptance gates.
+Selected remediation proposal: [`zk-coins/docs#96`](https://github.com/zk-coins/docs/pull/96). It converts the findings below into one coherent paper-model v3 port, exact specification edit map, and testnet/mainnet acceptance gates.
+
+**Post-baseline architecture decision.** After the specification baseline reviewed here, [`research@f392fa0`](https://github.com/zk-coins/research/blob/f392fa0450d7b33e250b86103dbd37069ea50cf1/zkcoins-design/ACCUMULATOR_SELF_PUBLISH.md) accepted on-chain half-aggregated state nullifiers, Bitcoin first occurrence and conditional NAV as the project plan of record. That later decision does not retroactively change this audit's findings against `docs@6816fc3`; it controls their selected remediation. `docs#96` is aligned to it, and the former full-batch-envelope alternative is rejected because it would retain the serialized `prev_root` writer.
 
 ## 0. Kurzfassung auf Deutsch
 
@@ -33,6 +35,8 @@ Diese Änderungen können grundsätzlich funktionieren, erben aber nicht automat
 
 Gesamturteil: **paper-inspired, core-compatible successor design; wesentliche Abweichungen noch nicht vollständig bewiesen oder implementierungsseitig belegt.**
 
+Seit diesem gepinnten Review ist die Architekturentscheidung `research@f392fa0` hinzugekommen: Der serielle 231-Byte-Batchpfad soll zugunsten der Paper-Konstruktion mit on-chain State-Nullifiern, First-Occurrence und Conditional NAV zurückgebaut werden. Das ist der konsistente Schließungspfad in `docs#96`, aber noch keine bereits umgesetzte oder auditierte Spezifikation.
+
 ## 1. Pinned review baseline
 
 ### Current specification
@@ -46,20 +50,23 @@ Gesamturteil: **paper-inspired, core-compatible successor design; wesentliche Ab
 ### Original sources
 
 1. **zkCoins**, Robin Linus, 2023:
-   - [original GitHub gist](https://gist.github.com/RobinLinus/d036511015caea5a28514259a1bab119)
-   - pinned project reproduction: [`papers-typst/zkcoins.typ`](https://github.com/zk-coins/research/blob/7048503c564787bf0f775e28c5b65efab6ba79be/papers-typst/zkcoins.typ)
-   - SHA-256: `75cc60755398a126e1f6186e67a78267cf6106e65bfea073079a644a643bddc0`
+   - mutable [GitHub gist](https://gist.github.com/RobinLinus/d036511015caea5a28514259a1bab119)
+   - exact reviewed gist revision: [`c86d4818c44e975442f739a7faaf73db112f5501`](https://gist.github.com/RobinLinus/d036511015caea5a28514259a1bab119/c86d4818c44e975442f739a7faaf73db112f5501), committed 2025-05-15; this is the final text revision in the gist history at review time and the exact baseline used for every zkCoins comparison below
+   - reviewed raw gist Markdown SHA-256: `2cb303563ab4d49cf77cfc1e3afb578ac77f8f0e9dfd9ffb61a9d4bd7cebbf9a`
+   - pinned project typographic reproduction: [`papers-typst/zkcoins.typ`](https://github.com/zk-coins/research/blob/7048503c564787bf0f775e28c5b65efab6ba79be/papers-typst/zkcoins.typ)
+   - reproduction SHA-256: `75cc60755398a126e1f6186e67a78267cf6106e65bfea073079a644a643bddc0`
 
 2. **Shielded CSV: Private and Efficient Client-Side Validation**, Jonas Nick, Liam Eagen and Robin Linus:
-   - [IACR ePrint 2025/068](https://eprint.iacr.org/2025/068)
+   - exact original paper release reviewed: [`ShieldedCSV/ShieldedCSV`, release `2024-09-20`](https://github.com/ShieldedCSV/ShieldedCSV/releases/download/2024-09-20/shieldedcsv.pdf)
+   - later canonical bibliographic record: [IACR ePrint 2025/068](https://eprint.iacr.org/2025/068)
    - pinned project PDF: [`shieldedcsv-paper.pdf`](https://github.com/zk-coins/research/blob/7048503c564787bf0f775e28c5b65efab6ba79be/shieldedcsv-paper.pdf)
-   - PDF SHA-256: `889acc4223d519aaea685d79fbb61d4dff2fb1b900a481d2d20a9faa37a6a96a`
+   - original-release and project-PDF SHA-256 (byte-identical): `889acc4223d519aaea685d79fbb61d4dff2fb1b900a481d2d20a9faa37a6a96a`
    - searchable project reproduction: [`papers-typst/shielded-csv.typ`](https://github.com/zk-coins/research/blob/7048503c564787bf0f775e28c5b65efab6ba79be/papers-typst/shielded-csv.typ)
    - Typst SHA-256: `67482012c33124fe7420a310aeb1bd305ca8d7bd2d5b5883877ce2b8ca6e8f29`
 
 ### Version caveat
 
-The GitHub gist has a revision history and has been edited after 2023. A future review MUST cite either an exact gist revision or the pinned project reproduction above. Otherwise the phrase “original zkCoins paper” is not reproducible.
+The GitHub gist has a revision history and was edited after 2023. This review therefore pins revision `c86d4818…`; a future review MUST cite an exact revision rather than the mutable gist landing page. For Shielded CSV, “original paper” means the byte-pinned `2024-09-20` release above; the ePrint page is cited as the later canonical bibliographic record. These distinctions prevent a future revision from silently changing the comparison baseline.
 
 ## 2. Meaning of “conformant”
 
@@ -167,7 +174,7 @@ The Shielded CSV security argument does not prove this composition. At minimum, 
 
 **Additional DEFECT F-01 — publisher S2C opening is not transported.** Section 3.2 says a verifier confirms `R = R' + H(R' || H_agg)G`. That requires the pre-tweak point `R'`. The published `BatchInscription` contains only the ordinary BIP-340 signature `(R,s)`, and the normative `BatchBundle` schema contains no publisher `R'`. A verifier cannot reconstruct `R'` from `(R,H_agg)` without solving the hash fixed-point/preimage problem. Therefore the claimed publisher-to-proof S2C binding is not verifiable from the specified wire objects.
 
-**Required fix:** Add a publisher `s2c_nonce = R'` to `BatchBundle` or another authenticated retrievable object, bind its encoding, add a negative test that substitutes another aggregate proof, and regenerate the vectors. This need not increase the 231-byte on-chain payload.
+**Required fix:** Either (a) add a publisher `s2c_nonce = R'` to an authenticated retrievable object and bind its encoding, (b) remove publisher S2C and sign a digest of the exact published batch body, or (c) remove the root-transition publisher layer and adopt paper-style NISSHAC state-nullifier commitments whose per-member openings travel in the corresponding private proof data. The accepted architecture decision and [`docs#96`](https://github.com/zk-coins/docs/pull/96) select option (c). Add commitment-substitution negative vectors and regenerate the signature/aggregation vectors.
 
 ### Perspective 3 — zero-knowledge proof-system engineering
 
@@ -226,7 +233,7 @@ The related paper [Solving Data Availability Limitations in CSV with UTxO Bindin
 - bootstrap depends on a holder serving an unverified lookup response;
 - content addressing proves a candidate after discovery but does not solve discovery.
 
-**Required fix:** Put a directly fetchable content address on-chain, or define a deterministic, enumerable resolution layer whose availability and collision/security properties are part of the protocol. At minimum replicate and authenticate the locator mapping as a first-class object and include it in recovery tests.
+**Required fix:** Put a directly fetchable content address on-chain, or define a deterministic, enumerable resolution layer whose availability and collision/security properties are part of the protocol. At minimum replicate and authenticate the locator mapping as a first-class object and include it in recovery tests. This closes discoverability only; preventing selective-serving ledger splits additionally requires the objective-availability repair tracked under F-06.
 
 ### Perspective 6 — mechanism design and publisher economics
 
@@ -319,7 +326,7 @@ The project’s own [Assurance Roadmap](https://github.com/zk-coins/docs/blob/68
 **Required actions:**
 
 - Rebase every formal property onto the exact current commit.
-- Add properties for F-01 publisher S2C opening and F-02 locator discoverability.
+- Add properties for the selected F-01 NISSHAC commitment opening and F-02 Bitcoin-only ledger reconstruction (or the equivalent properties of another explicitly selected alternative).
 - Model honest-node convergence under asymmetric bundle availability.
 - Add arbitrary-depth reorg traces or explicitly prove only a bounded model and state the assumption.
 - Keep formal safety, cryptographic proof, implementation audit, liveness and incentive analysis as separate evidence classes.
@@ -328,11 +335,11 @@ The project’s own [Assurance Roadmap](https://github.com/zk-coins/docs/blob/68
 
 ### F-01 — publisher S2C proof binding is not verifiable from specified objects
 
-- **Severity:** HIGH
+- **Severity:** HIGH for specification conformance/interoperability; the direct forgery impact is narrower because the aggregate proof is still verified against its public statement
 - **Type:** specification completeness / cryptographic binding
 - **Evidence:** `R'` is required by the verification equation but absent from both published normative object schemas.
-- **Impact:** A scanner can verify an ordinary publisher signature and separately verify an aggregate proof, but cannot verify the claimed S2C relation binding those exact proof bytes to that signature.
-- **Fix acceptance:** A wire-carried publisher `R'`, exact encoding, positive vector and proof-substitution negative vector.
+- **Impact:** A scanner can verify an ordinary publisher signature and separately verify an aggregate proof, but cannot execute the specified S2C check binding those exact proof bytes to that signature. This is an impossible normative verification step, not by itself evidence that a forged root can pass the independently checked aggregate proof.
+- **Fix acceptance:** Either a wire-carried publisher `R'`, an ordinary exact-body signature, or replacement by paper-style NISSHAC member commitments with explicitly transported openings; exact encoding plus positive and commitment/proof-substitution negative vectors in every case. The accepted plan selects the third form.
 
 ### F-02 — `bundle_locator` does not directly locate a Blossom blob
 
@@ -369,7 +376,7 @@ The project’s own [Assurance Roadmap](https://github.com/zk-coins/docs/blob/68
 - **Severity:** HIGH
 - **Type:** operational assumption presented as protocol guarantee
 - **Impact:** three replicas may share one operator, jurisdiction, storage provider or deletion policy. There is no proof of retrievability or payment for indefinite retention.
-- **Fix acceptance:** measurable independence policy, retention incentives, periodic retrievability checks and a defined failure probability/model.
+- **Fix acceptance:** for public-ledger data, eliminate the off-chain dependency or define a complete DA protocol with an explicit failure model; for private bearer data, state replica independence, retention/retrievability policy and irreducible-loss conditions separately. The accepted plan puts state nullifiers on Bitcoin and limits replication claims to private recovery.
 
 ### F-07 — current formal certificate is stale for the reviewed baseline
 
@@ -392,7 +399,7 @@ The project’s own [Assurance Roadmap](https://github.com/zk-coins/docs/blob/68
 | “faithfully builds on the whitepapers wherever they leave choices open” | “retains the whitepapers’ CSV/PCD core and introduces documented protocol deviations in nullifiers, batching, DA, recovery and publishing.” |
 | “no central element anywhere” | “no protocol-mandated custodial operator or permissioned validator; publisher and storage concentration remain open economic risks.” |
 | “seed is the only thing a user backs up” | “seed is the only user-managed secret backup; recovery also requires surviving off-chain proof data.” |
-| “two honest nodes at the same tip classify identically” | “two honest nodes with the same available and verified bundle prefix classify identically; asymmetric DA can delay convergence.” |
+| “two honest nodes at the same tip classify identically” | “two honest nodes with the same available and verified bundle prefix classify identically; under the current observer-dependent admission text, asymmetric/selective DA can cause divergent root prefixes until an objective admission rule resolves them.” |
 | “adds no finality assumption beyond Bitcoin” | “uses Bitcoin ordering and defines application finality at six confirmations; deeper reorgs are currently outside the guaranteed state machine.” |
 | “trustless” without qualifier | “custody/integrity are intended to be cryptographic; privacy, availability and liveness depend on the selected node, relays, publishers and DA assumptions.” |
 
@@ -415,26 +422,26 @@ A deviation is not adequately supported merely because the specification contain
 
 ### P0 — specification blockers
 
-1. Fix F-01 by transporting and binding the publisher S2C opening `R'`.
-2. Fix F-02 by making batch content directly discoverable from Bitcoin or by specifying a durable resolution protocol.
+1. Fix F-01 as selected in `docs#96`: retire the publisher root-transition signature and transport each paper-style NISSHAC state-nullifier commitment opening in its private proof data.
+2. Fix F-02 and F-06 together for the selected architecture by publishing state nullifiers on Bitcoin and rebuilding first occurrence without a public-ledger bundle lookup; keep private `CoinProof` recovery as a separate DA class.
 3. Reconcile F-03 finality language and deep-reorg behaviour.
 4. Reconcile F-04 unanchored mints with the Bitcoin-only settlement requirement.
 5. Decide Plonky2 versus pre-v1 migration before generating canonical vectors.
 
 ### P1 — proof and verification
 
-1. Add formal security definitions for the redesigned nullifier/batch construction.
+1. Add formal security definitions for the redesigned state-nullifier/NISSHAC construction and its composition with the zkCoins account relation.
 2. Publish paper reductions for no forgery, no double spend, conservation and privacy.
-3. Update Apalache models to `6816fc3` or its successor.
-4. Add convergence, locator discovery, S2C substitution and arbitrary-reorg properties.
+3. Update Apalache models to the final normative remediation commit, not merely `6816fc3`.
+4. Add first-occurrence convergence, commitment-opening substitution, conditional-NAV and arbitrary-reorg properties.
 
 ### P2 — executable evidence
 
-1. Implement exact `C` and `C_batch` circuits.
+1. Implement the exact v3 account/conditional-NAV relation and NISSHAC verification/commitment gadgets; remove the retired `C_batch` root-transition path.
 2. Fill all `<REGEN>` vectors and circuit digests.
 3. Run cross-language primitive tests.
 4. Run a non-mocked regtest A-to-Z payment and clean-room recovery.
-5. Publish worst-case proof time, memory, proof size, batch latency and scan bandwidth.
+5. Publish worst-case proof time, memory, proof size, aggregation latency, on-chain bytes per member and scan bandwidth.
 
 ### P3 — operations and economics
 
@@ -460,7 +467,7 @@ Recommended public status:
 ## 11. Primary and project sources
 
 - Robin Linus, [zkCoins gist](https://gist.github.com/RobinLinus/d036511015caea5a28514259a1bab119).
-- Jonas Nick, Liam Eagen, Robin Linus, [Shielded CSV: Private and Efficient Client-Side Validation](https://eprint.iacr.org/2025/068).
+- Jonas Nick, Liam Eagen, Robin Linus, [Shielded CSV original 2024-09-20 release](https://github.com/ShieldedCSV/ShieldedCSV/releases/download/2024-09-20/shieldedcsv.pdf); later bibliographic record [IACR ePrint 2025/068](https://eprint.iacr.org/2025/068).
 - Liu, Wang, Zhang, [Solving Data Availability Limitations in CSV with UTxO Binding](https://eprint.iacr.org/2025/569).
 - [`zk-coins/docs` reviewed specification](https://github.com/zk-coins/docs/blob/6816fc398ea35284e640ed8e0b326fa96880cf7d/docs/specification.md).
 - [`zk-coins/docs` Assurance Roadmap](https://github.com/zk-coins/docs/blob/6816fc398ea35284e640ed8e0b326fa96880cf7d/docs/assurance.md).
