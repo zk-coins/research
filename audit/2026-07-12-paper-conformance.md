@@ -18,7 +18,7 @@ It is not an implementation audit and not a cryptographic audit report. It is a 
 
 Selected remediation proposal: [`zk-coins/docs#96`](https://github.com/zk-coins/docs/pull/96). It converts the findings below into one coherent paper-model v3 port, exact specification edit map, and testnet/mainnet acceptance gates.
 
-**Post-baseline architecture decision.** After the specification baseline reviewed here, [`research@f392fa0`](https://github.com/zk-coins/research/blob/f392fa0450d7b33e250b86103dbd37069ea50cf1/zkcoins-design/ACCUMULATOR_SELF_PUBLISH.md) accepted on-chain half-aggregated state nullifiers, Bitcoin first occurrence and conditional NAV as the project plan of record. That later decision does not retroactively change this audit's findings against `docs@6816fc3`; it controls their selected remediation. `docs#96` is aligned to it, and the former full-batch-envelope alternative is rejected because it would retain the serialized `prev_root` writer.
+**Post-baseline architecture decision.** After the specification baseline reviewed here, [`research@f392fa0`](https://github.com/zk-coins/research/blob/f392fa0e4f55d68e6135e7eced15ef719118e545/zkcoins-design/ACCUMULATOR_SELF_PUBLISH.md) accepted on-chain half-aggregated state nullifiers, Bitcoin first occurrence and conditional NAV as the project plan of record. That later decision does not retroactively change this audit's findings against `docs@6816fc3`; it controls their selected remediation. `docs#96` is aligned to it, and the former full-batch-envelope alternative is rejected because it would retain the serialized `prev_root` writer.
 
 ## 0. Kurzfassung auf Deutsch
 
