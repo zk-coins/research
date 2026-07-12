@@ -1,8 +1,10 @@
 # zkCoins specification vs. the original zkCoins and Shielded CSV papers
 
-**Status:** independent internal architecture and conformance review  
-**Date:** 2026-07-12  
-**Language:** English for external review; German executive summary below  
+**Status:** independent internal architecture and conformance review
+
+**Date:** 2026-07-12
+
+**Language:** English for external review; German executive summary below
 **Verdict:** **core-concept compatible, but not paper-conformant as a protocol construction; several material deviations are not yet sufficiently proven**
 
 This document is intended to be stable, reviewable and linkable. It separates:
