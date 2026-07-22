@@ -34,12 +34,12 @@ link like `./ROADMAP.md` inside these documents, resolve it as follows:
 | Reference in the drafts | Now lives at |
 |---|---|
 | `ROADMAP.md` | `./ROADMAP.md` (archived in this directory; the canonical implementation roadmap) |
-| public protocol spec | [docs.zkcoins.app/specification](https://docs.zkcoins.app/specification) |
+| public protocol spec | [docs.zkcoins.com/specification](https://docs.zkcoins.com/specification) |
 | `SPEC.md` (circuit/single-asset spec) | `./SPEC.md` (in this directory) |
 | `CONTRIBUTING.md` | [zk-coins/node CONTRIBUTING.md](https://github.com/zk-coins/node/blob/develop/CONTRIBUTING.md) |
 | `program-plonky2/src/...` | [zk-coins/node program-plonky2](https://github.com/zk-coins/node/tree/develop/program-plonky2) |
 
 > Note: `SPEC.md` here is the node *circuit* specification (it names concrete
 > `program-plonky2/src/...` files). It is **not** a byte-for-byte copy of the public
-> protocol spec at `docs.zkcoins.app/specification`; the two are different documents at
+> protocol spec at `docs.zkcoins.com/specification`; the two are different documents at
 > different altitudes, so both are kept.

@@ -21,7 +21,7 @@ GitHub (push)
                               → SSH deploy to PRD server
 
 Static docs
-  └── docs.zkcoins.app → Cloudflare Pages (auto-build on push)
+  └── docs.zkcoins.com → Cloudflare Pages (auto-build on push)
 ```
 
 ## URLs
@@ -33,7 +33,7 @@ Static docs
 | `zkcoins.info` | Brand-Hub / Landing (planned) | PRD |
 | `zkcoins.app` | Wallet App | PRD |
 | `api.zkcoins.app` | Backend API | PRD |
-| `docs.zkcoins.app` | Documentation | PRD |
+| `docs.zkcoins.com` | Documentation | PRD |
 | `status.zkcoins.app` | Status Page | PRD |
 | `dev.zkcoins.app` | Wallet App | DEV |
 | `dev-api.zkcoins.app` | Backend API | DEV |

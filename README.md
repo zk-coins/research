@@ -118,7 +118,7 @@ git submodule update --init --recursive
 |---|---|
 | [zk-coins/app](https://github.com/zk-coins/app) | Web application (zkcoins.app) |
 | [zk-coins/node](https://github.com/zk-coins/node) | Rust backend / node (api.zkcoins.app) |
-| [zk-coins/docs](https://github.com/zk-coins/docs) | Documentation (docs.zkcoins.app) |
+| [zk-coins/docs](https://github.com/zk-coins/docs) | Documentation (docs.zkcoins.com) |
 
 ## License
 
