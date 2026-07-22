@@ -47,4 +47,4 @@ specification lives in [zk-coins/docs](https://github.com/zk-coins/docs).
 ## Related Repos
 
 - [zk-coins/node](https://github.com/zk-coins/node) — Rust backend.
-- [zk-coins/docs](https://github.com/zk-coins/docs) — specification ([docs.zkcoins.app](https://docs.zkcoins.app)).
+- [zk-coins/docs](https://github.com/zk-coins/docs) — specification ([docs.zkcoins.com](https://docs.zkcoins.com)).
