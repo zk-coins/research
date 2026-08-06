@@ -7,7 +7,7 @@
 **Audience:** protocol engineers and organisations evaluating zkBTC deployment (as minters, optional gatekeepers, or operators).
 
 **Supersedes:**
-- [`BRIDGE_MVP.md`](./BRIDGE_MVP.md) §4 / §6.3 (separate `IssuanceProof` / `BurnProof` ProofTypes and global `peg_in_consumed_smt` / `burned_coins_smt` — incompatible with the post-#97 nullifier model, with specification.md §6.5's version-branch dispatch, and with §2.2's single-circuit rule);
+- [`BRIDGE_MVP.md`](./BRIDGE_MVP.md) §4 / §6.3 (separate `IssuanceProof` / `BurnProof` ProofTypes and global `peg_in_consumed_smt` / `burned_coins_smt` — incompatible with the post-#97 nullifier model, with specification.md §6.5's version-branch dispatch, and with specification.md §2.2's single-circuit rule);
 - the `IssuanceTerms_v2_glock_bridged` sketch in [`../bitvm-bridge-research.md`](../bitvm-bridge-research.md) (issuer-less, and `issuance_version == 2` is now the capped-supply standard in specification.md §6.5);
 - the single-issuer framing of earlier drafts of this document (replaced by permissionless issuance with an optional mint gatekeeper — §1.1 REQ-3, §6).
 
@@ -681,7 +681,7 @@ TS3 requires new circuit digests. Per specification.md §1.7.8 (v1 freeze): any 
 2. Existing v1 assets are unaffected and **MUST NOT** migrate implicitly into v2.
 3. The v2 circuit **MUST** ship **all** standards (1, 2, and 3) as branches so the new universe is complete from genesis — creators of non-zkBTC assets can still issue under TS1/TS2 on v2.
 4. ProofData layout v2 = six v1 fields + `redeem_commitment` (§3.7.2), with a new `circuit_digest(C)` pin for the v2 circuit. **`C_balance` is re-pinned for v2** (§3.7.2 — M-02): both digests change.
-5. From the v2 release onward, §1.7.8-style freeze discipline applies to the **v2** surface: further changes are further version bumps, not in-place edits.
+5. From the v2 release onward, specification.md §1.7.8-style freeze discipline applies to the **v2** surface: further changes are further version bumps, not in-place edits.
 
 #### 3.7.1 Coexistence table
 
@@ -801,6 +801,7 @@ BitVM2-mainnet is **CLEARED** (proven). Remaining work is **three gates** on pro
 | M1 | BitVM2 verifier mainnet-proven | **CLEARED** — Bitlayer 2025-07; Citrea Clementine live 2026-01 |
 | M2 | Reference open-registration operator market operational | GOAT/Fiamma ship open registration; our per-epoch registration market (§4.1.1 / §4.1.2) must be instantiated and calibrated |
 | M3 | **Plonky2 → BitVM2 (Groth16/SNARK) conversion of the zkCoins compliance predicate demonstrated** | Integration track (a) — blocking engineering gate |
+| M4 | External audit of the v2 circuit, BitVM2 graph, and pre-signed graphs published | Open — closes the circuit/graph-soundness class that can otherwise enable theft (§4.5 / §4.6B) |
 
 ### 4.1 Roles
 
@@ -976,7 +977,7 @@ and a redeem transition proof such that:
   3. Recursive verification of the redeem transition's C proof under the
      pinned v2 verifier data (parent specification.md §5.6 requires this).
   4. Pkᵢ == redeem_proof.consumed_pubkey
-     (§5.6 anti-naked-nullifier binding; specification.md ~2094).
+     (specification.md §5.6 anti-naked-nullifier binding; specification.md ~2094).
   5. The verified transition took the TS3 redeem branch:
      In(zkBTC) == redeem_amount and Out(zkBTC) == 0
      (proven via the recursive proof — see exposition note).
@@ -1072,7 +1073,7 @@ This profile has **no** emergency multisig, **no** admin keys, and **no** in-pla
 
 **Required discipline before mainnet:**
 
-- §1.7.8-grade freeze discipline on the v2 circuit surface;
+- specification.md §1.7.8-grade freeze discipline on the v2 circuit surface;
 - differential testing of LCP and mint/redeem branches;
 - external audit gate on the v2 circuit, BitVM2 stack, and **pre-signed** graphs **before** mainnet (including verification that setup signing shares are deleted and that no live `agg_key` CHECKSIG leaf remains on vault outputs);
 - the §4.1 role-note (c) per-operator **sequencing connector** plus the §4.4 independent-watchtower floor close the one-shot weakness that a Payout Admin covers (graph structure, not an admin key).
@@ -1301,7 +1302,7 @@ Unaffected: global anonymity set of shielded multi-asset transfers; gatekeeper a
 
 Until the TS3 circuit and the BitVM2 integration gate (Plonky2→BitVM2 conversion) clear, an operator **MAY** run a custodial-window bridged BTC asset **today** under token standard 1 plus an operator service, following the lightning-bridge.md pattern:
 
-- operator SLA for redemption (quote / burn-address or §5.6-link style proof of payment to a sink);
+- operator SLA for redemption (quote / burn-address or specification.md §5.6-link style proof of payment to a sink);
 - mint policy matching observed L1 locks under operator honesty;
 - no new wire protocol; ordinary sender/recipient roles.
 
@@ -1494,7 +1495,7 @@ Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-sat
 
 | Prior sketch | Problem | Replacement |
 |--------------|---------|-------------|
-| Separate `IssuanceProof` / `BurnProof` ProofTypes | Violates single-circuit `C` (§2.2); conflicts with §6.5 version-branch dispatch | TS3 mint / redeem as branches of `C` on v2 surface |
+| Separate `IssuanceProof` / `BurnProof` ProofTypes | Violates single-circuit `C` (parent specification.md §2.2); conflicts with specification.md §6.5 version-branch dispatch | TS3 mint / redeem as branches of `C` on v2 surface |
 | Global `peg_in_consumed_smt` / `burned_coins_smt` | New consensus objects; incompatible with post-#97 model | Per-deposit `Pk_mint` first-occurrence; redeem ID = `(Pkᵢ, Rᵢ)` |
 | `IssuanceTerms_v2_glock_bridged` (issuer-less, version 2) | `issuance_version == 2` is capped-supply; incomplete legitimacy | `IssuanceTerms_v3` with optional gatekeeper + `operator_set_root` + `vault_template` binding |
 | Single mandatory issuer (`issuer_pubkey` / REQ-3 monopoly) | Central party; conflates economic mint with quality control | Optional gatekeeper + permissionless minter; `Pk_mint` mode-dependent |
