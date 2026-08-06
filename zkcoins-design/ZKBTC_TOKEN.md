@@ -36,7 +36,7 @@ REQ-4 as stated demands **gatekeeper-independence** (and, more generally, indepe
 
 ### 1.3 Mechanism-class → unilateral-exit verdict
 
-Compressed from the landscape matrix (research landscape report §3):
+Compressed from the landscape matrix (research §3):
 
 | Mechanism class | Unilateral exit (holder vs L1 vault) | Fit for REQ-4 |
 |-----------------|--------------------------------------|---------------|
@@ -84,7 +84,7 @@ zkBTC has two normative halves:
 1. **Token standard 3 (TS3)** — in-circuit rules inside the single PCD circuit `C` (`issuance_version == 3`). Every mint is bound to a unique confirmed **`MoveToBacked` transaction** that creates a **backing-only vault output** (N-of-N-authenticated, deep-finality, operator-set membership; no refund path on that output); every redeem is an ordinary holder transition that anchors a unique on-chain nullifier `(Pkᵢ, Rᵢ)` and a hiding `redeem_commitment`.
 2. **zkBTC bridge profile** — off-circuit **BitVM2**-based (BitVM-family) construction that holds the BTC reserve. Peg-in is permissionless for minters, optionally gated by a per-asset gatekeeper that is entry quality filter, **canonical-chain anchor** (R-04 / Attack A), and **operator-set-diversity vouch** (R-08 / Attack B) for mint settlement (REQ-3). Peg-out is gatekeeper-independent (REQ-4), operator-fronted (liveness only — operators **cannot steal** under 1-of-N + ≥1 honest live challenger acting in-window (§5)), with **optimistic assert/challenge/disprove** reimbursement and **permissionless challenging** (BitVM2 core property; availability ≠ guaranteed action — §4.1 role-note (a)).
 
-Document order follows the advisor Q3 rule: token standard first (defines the statements), bridge second (consumes them). The bridge never invents a parallel mint/burn semantics; it only materialises Bitcoin custody around statements the circuit already enforces.
+Document order is deliberate: the token standard comes first (it defines the statements), the bridge second (it consumes them). The bridge never invents a parallel mint/burn semantics; it only materialises Bitcoin custody around statements the circuit already enforces.
 
 ### 2.1 Roles (minter and optional gatekeeper)
 
@@ -569,7 +569,7 @@ Soundness source:
 
 **Optional first-recipient check (SHOULD).** The first recipient of a TS3-minted coin (who holds the vault data out-of-band with the mint delivery) **SHOULD** additionally confirm that `(vault_txid, vault_vout)` is present at depth ≥ `D_mint` in **its own** canonical chain view. This is a defence-in-depth hygiene check, not a soundness requirement for later holders (and does not replace the gatekeeper's mint-time canonical-anchor duty for `MoveToBacked` and `reg_root_E`).
 
-**Residual (accepted, D-16 class).** A reorg deeper than `D_mint` that orphans the proven `MoveToBacked` is a bounded accepted finality boundary (risks.md D-16 class; report-intern constraint 21). It is not closed by transitive canonicity transport.
+**Residual (accepted, D-16 class).** A reorg deeper than `D_mint` that orphans the proven `MoveToBacked` is a bounded accepted finality boundary (risks.md D-16 class). It is not closed by transitive canonicity transport.
 
 **Residual (accepted, consented irrevocable reserve contribution — R-01 / INV-01).** If `MoveToBacked` fires but the mint never settles, the vaulted BTC is **not** merely frozen recoverable BTC: because reimbursement is cross-graph (any same-asset in-set vault can back a redeem), it becomes an **irrevocable, consented contribution to the shared reserve** and **MAY** be consumed by another holder's redeem. Firing requires the **depositor's co-signature in both modes** (§3.3.2 / §4.2), so the contribution is **consented**, not imposed. The depositor's unilateral escape for the "never processed / never `MoveToBacked`" case remains the pre-`MoveToBacked` deposit refund leaf.
 
@@ -667,7 +667,7 @@ Aggregate circulating supply therefore remains a **conditional upper bound** (`c
 
 **Default published form (SHOULD).** Because publishing raw redeem openings would deanonymize `btc_recipient`, the default published form for holder-facing audit **SHOULD** be a **specification.md §5.7-style balance attestation** (per account), not raw openings. Raw openings **MAY** be disclosed under holder consent or legal process; they are not the default public audit surface. Aggregate exact supply, if published, uses the separate aggregate attestation form above.
 
-**Contrast token standard 1:** mint amounts are not publicly summable at all (report-intern constraint 5; risks.md D-13). TS3 improves on TS1 by binding every mint to a public vault UTXO (upper-bound audit) and by enabling optional published attestations for exact figures.
+**Contrast token standard 1:** mint amounts are not publicly summable at all (risks.md D-13). TS3 improves on TS1 by binding every mint to a public vault UTXO (upper-bound audit) and by enabling optional published attestations for exact figures.
 
 **Honest trade-off:** vault deposit amounts and L1 payout amounts remain public by L1 visibility; internal transfers stay fully shielded (REQ-2 intact). Exact supply equality is an attestation/ledger property, not a pure chain-scan invariant. The default remains the **conditional** upper bound (under the reserve-safety assumptions of §5: **1-of-N + R-04 + R-08/genesis + ≥1 honest challenger**; broken by Attack A, Attack B, **or** unchallenged fraudulent reimbursement) + optional attestation, not raw openings.
 
@@ -832,7 +832,7 @@ This is a technical hole closed by graph structure, not a style point.
 
 ### 4.1.1 Open permissionless operator registration market
 
-This section specifies the flagship open-operator property of REQ-4: **anyone can be the exit agent (Wechselschalter), including a holder acting as their own.**
+This section specifies the flagship open-operator property of REQ-4: **anyone can be the exit agent, including a holder acting as their own.**
 
 1. **Open join (permissionless, MUST).** For each deposit epoch E there is a **registration window** before the epoch's vault graph is set up. **Anyone** **MAY** register as an operator for E by (i) posting the policy-P bond to a bonded/slashable output and (ii) contributing their operator pubkey to the epoch's N-of-N presigning ceremony. No allowlist, no admin approval, no gatekeeper approval (the gatekeeper has **NO** role here — that is mint-only). A holder **MAY** register to be their **own** exit agent.
 
@@ -840,7 +840,7 @@ This section specifies the flagship open-operator property of REQ-4: **anyone ca
 
 3. **Freeze semantics (MUST state honestly).** After the epoch freeze, the registered set of E is fixed **for reclaim from E's vault** (the pre-signed graph binds those keys — this is the covenant-emulation reality; registration-free reclaim needs §10.2 covenants). Registration for **future** epochs stays permanently open. So "operator set" is open across time (anyone can always join the next epoch), and any given epoch's vault is reclaimable by that epoch's registered operators. Fungibility of the **claim** (`asset_id`) is unaffected: the token is one fungible asset; redeem is cross-graph across all in-set epoch vaults (§4.3).
 
-4. **"Be your own Wechselschalter" — scoped to EXIT (MUST state).** Because registration is open, a holder who wants a guaranteed self-serviced **exit** **MAY** register (once, before an epoch) and thereafter front + reclaim their own redemptions. **Scope (MUST):** "no party can prevent this" refers to a **registered holder serving their own EXIT** along a graph **already presigned at that deposit's setup**. Exit reclaim does not run a live ceremony at exit time, so exit cannot be griefed once the graph exists. Setup-time (peg-in / registration) griefing is handled by §4.1.2 item 5 (Level-1 restart rounds) and the deposit-taproot refund leaf (Level-2) — **not** by this exit claim. This is the concrete meaning of REQ-4's open-operator property for exit.
+4. **"Be your own exit agent" — scoped to EXIT (MUST state).** Because registration is open, a holder who wants a guaranteed self-serviced **exit** **MAY** register (once, before an epoch) and thereafter front + reclaim their own redemptions. **Scope (MUST):** "no party can prevent this" refers to a **registered holder serving their own EXIT** along a graph **already presigned at that deposit's setup**. Exit reclaim does not run a live ceremony at exit time, so exit cannot be griefed once the graph exists. Setup-time (peg-in / registration) griefing is handled by §4.1.2 item 5 (Level-1 restart rounds) and the deposit-taproot refund leaf (Level-2) — **not** by this exit claim. This is the concrete meaning of REQ-4's open-operator property for exit.
 
 5. **Irreducible residual (MUST state plainly).** A holder who **never** registers relies on ≥1 registered operator of some in-set epoch being online to front + reclaim. That is a **liveness** dependency, not custody — the operator cannot steal (1-of-N + ≥1 honest live challenger acting in-window; worst case freeze/burn; §5 residual 3). Registration-free unilateral self-reclaim from a pooled vault is **covenant-class** and not available on today's Bitcoin (§10.2).
 
@@ -940,7 +940,7 @@ Numbered happy path:
 6. **Reimbursement.** After the challenge window without successful challenge, operator takes reimbursement from the vault along the pre-signed graph: the claim **MUST** remove **exactly `redeem_amount`** from the vault (NH-01) — vault-input value minus change-back-to-the-same-vault-descriptor equals `redeem_amount`, with the change output constrained back to the (in-set) vault. The mining fee is funded by the operator's own input/anchor, **never from vault value** (else backing erodes below remaining supply). A second claim for the same `(Pkᵢ, Rᵢ)` or the same payout outpoint is counterprovable by inclusion of an earlier **valid, unchallenged claim-marker** (logical first-marker, not a UTXO spend of the payout; slashed markers excluded — NEW-02).
 **The gatekeeper appears nowhere in this path (REQ-4).** Exit is gatekeeper-independent and operator-liveness-bounded.
 
-**Liveness residual (honest):** exit requires ≥ 1 live, liquid, willing **registered** operator. The operator set is **open** (anyone may register to serve, including the holder — §4.1.1), so the residual is *liveness of ≥1 registered operator*, not a privileged party. Landscape shortlist 1 marks this **PARTIAL**; bitvm.org states that without at least one honest operator "the funds become unspendable eventually" (landscape report §2.1 citing `https://bitvm.org/bitvm2`). Dishonest operators cannot steal under 1-of-N setup honesty + ≥1 honest live challenger actually acting within every relevant challenge window (§5 residual 3); worst case under that model is freeze / burn of affected deposits, not silent theft (else unchallenged-fraud drain — §3.6).
+**Liveness residual (honest):** exit requires ≥ 1 live, liquid, willing **registered** operator. The operator set is **open** (anyone may register to serve, including the holder — §4.1.1), so the residual is *liveness of ≥1 registered operator*, not a privileged party. Landscape shortlist 1 marks this **PARTIAL**; bitvm.org states that without at least one honest operator "the funds become unspendable eventually" (`https://bitvm.org/bitvm2`). Dishonest operators cannot steal under 1-of-N setup honesty + ≥1 honest live challenger actually acting within every relevant challenge window (§5 residual 3); worst case under that model is freeze / burn of affected deposits, not silent theft (else unchallenged-fraud drain — §3.6).
 
 **Cross-graph note.** Because peg-out is cross-graph, the fraud statement's asset-equality conjunct (B-04 / §4.3.2 item 6) plus `operator_set_root` membership together ensure a redeem only draws **in-set** vaults of the same asset (same policy root). Under open registration, *in-set* is not alone *1-of-N-honest*: Attack B (self-controlled Sybil epoch under the correct root) is closed at **mint** by R-08 in gated mode, not at redeem (§3.1.2).
 
@@ -1079,7 +1079,7 @@ This profile has **no** emergency multisig, **no** admin keys, and **no** in-pla
 
 **Upgrades:** new-vault migration only — new deposits into a new graph / new `vault_template` or new `operator_set_root` (new `asset_id` if those bound fields change); holders redeem-and-re-peg to move. Never in-place rotation of a live vault's admin keys or of a gatekeeper (gatekeeper rotation = new asset — §3.1). Efficiency upgrades (BitVM3/Glock/Mosaic — §10.1) are a verifier-trait swap + new vault graph (new epoch), not a token-standard change.
 
-**Comparison:** Citrea's Security Council (3-of-5) **can** move funds in emergency / upgrade paths (report-citrea §4.2 / §4.4). This design refuses that trust root deliberately and pays for it with irreversibility.
+**Comparison:** Citrea's Security Council (3-of-5) **can** move funds in emergency / upgrade paths (Citrea Clementine docs — §12.3). This design refuses that trust root deliberately and pays for it with irreversibility.
 
 ### 4.6 Launch gates (normative)
 
@@ -1093,7 +1093,7 @@ Without these, the REQ-4 claim is **false** (a mint-time party re-enters on the 
 2. **Setup integrity (BitVM2 form).** For every dispute path, N-of-N presign ceremony integrity **MUST** hold, with the independent-watchtower/challenger floor met and the anti-grief ceremony rule of §4.1.2 item 5. Toxic-waste concern re-based to BitVM2: connector/presign correctness; one honest signer deletes (NEW-01). No single mint-time party **MUST** monopolise setup artefacts that would allow forging or voiding fraud proofs.  
    **Open point:** IF a global circuit-specific setup artifact also exists in the BitVM2 conversion path (to be verified as part of the Plonky2→BitVM2 work), the classic "MPC ceremony with independent contributors" gate **MUST** apply there too. Do not abstract this uncertainty away.
 3. **Documented holder → operator onboarding** (self-fronting) via **open permissionless registration** (§4.1.1 / §4.1.2), acknowledging the bonded-onboarding cost of §4.1 role-note (b).
-4. **Challenger economics documented.** Name deployed Clementine's self-funded-challenge gap (challengers must self-fund; cross-chain reimbursement not deployed — report-citrea) as the **anti-pattern** to solve. BitVM2 permissionless challenge still needs challenger incentive/funding — an honest open item (not an availability gap).
+4. **Challenger economics documented.** Name deployed Clementine's self-funded-challenge gap (challengers must self-fund; cross-chain reimbursement not deployed) as the **anti-pattern** to solve. BitVM2 permissionless challenge still needs challenger incentive/funding — an honest open item (not an availability gap).
 
 #### (B) Maturity / integration gates
 
@@ -1122,7 +1122,7 @@ Restatement of §4.0 as a checklist (two tracks — both **MUST** clear):
 1. 1-of-N setup honesty (key-deletion style covenant emulation for presigned paths) over the **asset-bound, openly registered** operator set under policy P (`operator_set_root`).
 2. ≥ 1 independent **registered** operator for exit liveness (open set — anyone may register, including the holder).
 3. ≥ floor independent watchtowers (normative `PROVISIONAL` ≥ 3) **and** per-operator claim serialization (§4.1 role-note (c)) against the watchtower one-shot weakness; **and**, for reserve/redeem safety, **≥1 honest, live challenger/watchtower actually acting within every relevant challenge window** — not merely that a floor count exists or that challenge is permissionlessly available (mechanism-availability is delivered by BitVM2 — residual 6 / §4.1 role-note (a); safety requires actual action; else unchallenged-fraud drain — §3.6).
-4. Bitcoin adversary below ~45–50% hashrate for the relevant challenge horizon (Clementine / whitepaper class bounds; report-citrea).
+4. Bitcoin adversary below ~45–50% hashrate for the relevant challenge horizon (Clementine / whitepaper class bounds).
 5. Deep-finality of `MoveToBacked` at depth ≥ `D_mint` on the proven LCP chain (§3.4); residual reorg deeper than `D_mint` is D-16 class. **Canonical binding** of that chain — for **both** `MoveToBacked` **and** `reg_root_E` — to the Bitcoin tip is **not** in-circuit alone: in gatekeeper mode it is the gatekeeper's mint-signing duty (R-04 extended).
 6. **Permissionless challenging is DELIVERED under BitVM2** (not an open dependency — residual 3 / §4.1 role-note (a)); mechanism-availability alone does **not** guarantee safety. The residual beyond delivery is (i) that **≥1 honest challenger actually acts in-window** (residual 3) and (ii) challenger **incentive/funding** economics that make such action rational (§4.6A(4)).
 7. When a gatekeeper is designated: gatekeeper liveness at mint time (quality filter, **canonical-chain anchor (R-04: `MoveToBacked` + `reg_root_E`)**, and **operator-set-diversity vouch (R-08)** — §6), including the gated `MoveToBacked` co-sign and withholding `Pk_mint` until canonical confirmation of both anchors **and** diversity. **Not** a custody dependency over circulating coins or exits; **is** load-bearing for trust-minimized mint canonicity and Attack-B defense; under open registration, gatekeeper **integrity** is also a **backing-safety dependency** via R-08 (§6.3).
@@ -1350,7 +1350,7 @@ State plainly: these are **not** launch blockers. BitVM2 is the works-today norm
 
 ### 10.2 Covenant soft-fork upgrades (registration-free unilateral exit)
 
-Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-satisfy exit script of the form "valid burn / redeem proof → fixed payout template," removing the operator-liveness residual **and** enabling **registration-free** self-reclaim by a passive holder who never registered. Alpen engineer analysis notes that without covenants, BitVM-style bridges remain operator-mediated via presigned graphs; with CAT+CTV-style tools, unilateral trustless withdraws become designable. None of these opcodes is activated on Bitcoin mainnet as of mid-2026; realistic timeline is multi-year and uncertain (landscape report §2.11; bitcoinops covenant topics).
+Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-satisfy exit script of the form "valid burn / redeem proof → fixed payout template," removing the operator-liveness residual **and** enabling **registration-free** self-reclaim by a passive holder who never registered. Alpen engineer analysis notes that without covenants, BitVM-style bridges remain operator-mediated via presigned graphs; with CAT+CTV-style tools, unilateral trustless withdraws become designable. None of these opcodes is activated on Bitcoin mainnet as of mid-2026; realistic timeline is multi-year and uncertain (bitcoinops covenant topics).
 
 **Witness-encryption / PIPEs v2** is a research-only soft-fork-free theoretical path toward registration-free reclaim (not product-ready; eprint 2026/186).
 
@@ -1378,13 +1378,13 @@ Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-sat
 
 ## 12. References
 
-### 12.1 zkCoins internal
+### 12.1 zkCoins references
 
 - specification.md (docs `develop` @ e3b5d04) — §1.7.8 v1 freeze; §2.1 compliance predicate; §3.1–3.2 nullifier and S2C; §5.6 confirmation links; §6.5 token standards  
   `https://github.com/zk-coins/docs/blob/develop/docs/specification.md`  
   (URL also in `bitvm-bridge-research.md`)
-- lightning-bridge.md — operator-service pattern (report-intern; repo path under zk-coins/docs)
-- risks.md — bridge out of core scope; D-13 / D-16 / D-17 class boundaries (report-intern; repo path under zk-coins/docs)
+- lightning-bridge.md — operator-service pattern (in `zk-coins/docs`)
+- risks.md — bridge out of core scope; D-13 / D-16 / D-17 class boundaries (in `zk-coins/docs`)
 - bitvm-bridge-research.md — June-2026 Glock decision (**historical**; superseded by works-today BitVM2 decision §4.0); **explicitly cited source** for the 430–550× figure, single 64-byte Schnorr fraud-proof form, Argo ePrint 2026/049, dispute-cost table (~35k–100k sats projected), Eagen/Linus author-cluster note, and the specification.md GitHub URL above  
   (this repo: `research/bitvm-bridge-research.md`)
 - BITVM_BRIDGE.md — May strategy draft (partially superseded)  
