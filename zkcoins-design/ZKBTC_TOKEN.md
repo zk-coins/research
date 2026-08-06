@@ -1,6 +1,6 @@
 # zkBTC — Permissionless Deposit-Backed Redeemable BTC on zkCoins (Optional Gatekeeper)
 
-**Status:** Design specification. No code. **Buildable on today's Bitcoin — no soft-fork.** The normative fraud-proof verifier is **BitVM2** (mainnet-proven; reference exemplar: Citrea Clementine, live since 2026-01; Bitlayer BitVM bridge mainnet since 2025-07). Remaining work is **two tracks**: (a) the **Plonky2 → BitVM2 (SNARK/Groth16) conversion of the zkCoins compliance predicate** (§4.0 / §4.6B / M3), and (b) instantiating and hardening the **open operator-registration market** (policy encoding, bond / anti-domination calibration, `reg_root_E` format, ceremony robustness — semantic requirements in §4.1.2; calibration still open per §11 / §4.6A). Both §4.6A REQ-4 gates and §4.6B maturity gates **MUST** clear. zkBTC is a substantial engineering project (Citrea-class, order of months) built on **proven** components — not speculative research and not contingent on any not-yet-mainnet construction. Glock / BitVM3 / Mosaic are retained only as **§10 future efficiency upgrades** (BitVM3/Mosaic/Argo preserve permissionless challenge; Glock carries a designated-verifier trade-off — §10.1).
+**Status:** Design specification. No code. **Buildable on today's Bitcoin — no soft-fork.** The normative fraud-proof verifier is **BitVM2** (mainnet-proven; reference exemplar: Citrea Clementine, live since 2026-01; Bitlayer BitVM bridge mainnet since 2025-07). Remaining work is **three gates**: (a) the **Plonky2 → BitVM2 (SNARK/Groth16) conversion of the zkCoins compliance predicate** (§4.0 / §4.6B / M3), (b) instantiating and hardening the **open operator-registration market** (policy encoding, bond / anti-domination calibration, `reg_root_E` format, ceremony robustness — semantic requirements in §4.1.2; calibration still open per §11 / §4.6A), and (c) an **external audit of the v2 circuit, BitVM2 graph, and pre-signed graphs** (§4.6B). All three gates, plus §4.6A REQ-4 gates, **MUST** clear. zkBTC is a substantial engineering project (Citrea-class, order of months) built on **proven** components — not speculative research and not contingent on any not-yet-mainnet construction. Glock / BitVM3 / Mosaic are retained only as **§10 future efficiency upgrades** (BitVM3/Mosaic/Argo preserve permissionless challenge; Glock carries a designated-verifier trade-off — §10.1).
 
 **Authoritative source for:** the zkBTC token standard (token standard 3, `issuance_version == 3`) and the zkBTC bridge profile (permissionless minting with optional gatekeeper quality control at peg-in; gatekeeper-independent peg-out).
 
@@ -36,7 +36,7 @@ REQ-4 as stated demands **gatekeeper-independence** (and, more generally, indepe
 
 ### 1.3 Mechanism-class → unilateral-exit verdict
 
-Compressed from the landscape matrix (research §3):
+Compressed from the mechanism-class comparison (sources: §12.4):
 
 | Mechanism class | Unilateral exit (holder vs L1 vault) | Fit for REQ-4 |
 |-----------------|--------------------------------------|---------------|
@@ -48,7 +48,7 @@ Compressed from the landscape matrix (research §3):
 | Covenant vaults (CTV / CSFS / OP_CAT) | **YES** (design-space) after activation | Long-term registration-free-exit upgrade (§10.2) |
 | Custodial mints (Fedimint / Cashu) | **NO** | Contrast only |
 
-Sources for the matrix and shortlist: landscape research report §1–§4; BitVM2 bridge paper at `https://bitvm.org/bitvm_bridge.pdf` and `https://bitvm.org/bitvm2`.
+Sources for the matrix: the landscape references in §12.4; the BitVM2 bridge paper (`https://bitvm.org/bitvm_bridge.pdf`) and `https://bitvm.org/bitvm2`.
 
 ### 1.4 Scope boundaries
 
@@ -794,7 +794,7 @@ A conforming verifier reads `serialize(ProofData_v2)` from the first **32** publ
 
 #### Maturity gate (blocking — design document; ready-to-implement on proven components)
 
-BitVM2-mainnet is **CLEARED** (proven). Remaining work is **two tracks** on proven components: (a) the Plonky2→BitVM2 predicate-conversion integration gate (§4.6B / M3), and (b) instantiating and hardening the open operator-registration market (semantics now in §4.1.2; calibration still open per §11 / §4.6A / M2). Both §4.6A REQ-4 gates and §4.6B maturity gates **MUST** clear. This reframes the document from "future design gated on a not-yet-mainnet verifier" to "**ready-to-implement on proven components, with two remaining work tracks**."
+BitVM2-mainnet is **CLEARED** (proven). Remaining work is **three gates** on proven components: (a) the Plonky2→BitVM2 predicate-conversion integration gate (§4.6B / M3), (b) instantiating and hardening the open operator-registration market (semantics now in §4.1.2; calibration still open per §11 / §4.6A / M2), and (c) an external audit of the v2 circuit, BitVM2 graph, and pre-signed graphs (§4.6B). All three gates, plus §4.6A REQ-4 gates, **MUST** clear. This reframes the document from "future design gated on a not-yet-mainnet verifier" to "**ready-to-implement on proven components, with three remaining gates**."
 
 | # | Gate | Notes |
 |---|------|-------|
@@ -940,7 +940,7 @@ Numbered happy path:
 6. **Reimbursement.** After the challenge window without successful challenge, operator takes reimbursement from the vault along the pre-signed graph: the claim **MUST** remove **exactly `redeem_amount`** from the vault (NH-01) — vault-input value minus change-back-to-the-same-vault-descriptor equals `redeem_amount`, with the change output constrained back to the (in-set) vault. The mining fee is funded by the operator's own input/anchor, **never from vault value** (else backing erodes below remaining supply). A second claim for the same `(Pkᵢ, Rᵢ)` or the same payout outpoint is counterprovable by inclusion of an earlier **valid, unchallenged claim-marker** (logical first-marker, not a UTXO spend of the payout; slashed markers excluded — NEW-02).
 **The gatekeeper appears nowhere in this path (REQ-4).** Exit is gatekeeper-independent and operator-liveness-bounded.
 
-**Liveness residual (honest):** exit requires ≥ 1 live, liquid, willing **registered** operator. The operator set is **open** (anyone may register to serve, including the holder — §4.1.1), so the residual is *liveness of ≥1 registered operator*, not a privileged party. Landscape shortlist 1 marks this **PARTIAL**; bitvm.org states that without at least one honest operator "the funds become unspendable eventually" (`https://bitvm.org/bitvm2`). Dishonest operators cannot steal under 1-of-N setup honesty + ≥1 honest live challenger actually acting within every relevant challenge window (§5 residual 3); worst case under that model is freeze / burn of affected deposits, not silent theft (else unchallenged-fraud drain — §3.6).
+**Liveness residual (honest):** exit requires ≥ 1 live, liquid, willing **registered** operator. The operator set is **open** (anyone may register to serve, including the holder — §4.1.1), so the residual is *liveness of ≥1 registered operator*, not a privileged party. The §1.3 mechanism-class table marks this exit **PARTIAL**; bitvm.org states that without at least one honest operator "the funds become unspendable eventually" (`https://bitvm.org/bitvm2`). Dishonest operators cannot steal under 1-of-N setup honesty + ≥1 honest live challenger actually acting within every relevant challenge window (§5 residual 3); worst case under that model is freeze / burn of affected deposits, not silent theft (else unchallenged-fraud drain — §3.6).
 
 **Cross-graph note.** Because peg-out is cross-graph, the fraud statement's asset-equality conjunct (B-04 / §4.3.2 item 6) plus `operator_set_root` membership together ensure a redeem only draws **in-set** vaults of the same asset (same policy root). Under open registration, *in-set* is not alone *1-of-N-honest*: Attack B (self-controlled Sybil epoch under the correct root) is closed at **mint** by R-08 in gated mode, not at redeem (§3.1.2).
 
@@ -1097,7 +1097,7 @@ Without these, the REQ-4 claim is **false** (a mint-time party re-enters on the 
 
 #### (B) Maturity / integration gates
 
-Restatement of §4.0 as a checklist (two tracks — both **MUST** clear):
+Restatement of §4.0 as a checklist (three gates — all **MUST** clear):
 
 - [x] BitVM2 mainnet live (CLEARED — Bitlayer 2025-07; Citrea Clementine live 2026-01)
 - [ ] Reference open-registration operator market operational (§4.1.1 / §4.1.2) — track (b)
@@ -1533,4 +1533,4 @@ Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-sat
 
 ---
 
-*End of design specification. No code. Not a production launch until the §4.6A REQ-4 gates and §4.6B maturity/integration gates clear (two tracks: Plonky2→BitVM2 conversion and open-registration market instantiation); the verifier itself is mainnet-proven.*
+*End of design specification. No code. Not a production launch until the §4.6A REQ-4 gates and §4.6B maturity/integration gates clear (three gates: Plonky2→BitVM2 conversion, open-registration market instantiation, and external circuit/graph audit); the verifier itself is mainnet-proven.*
