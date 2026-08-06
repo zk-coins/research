@@ -111,7 +111,7 @@ An organisation **MAY** also operate an ordinary operator node if and only if la
 
 | Action | Why it fails |
 |--------|----------------|
-| Block transfers of circulating zkBTC | Ordinary §2 sends; no gatekeeper/minter clause in holder transitions |
+| Block transfers of circulating zkBTC | Ordinary parent specification.md §2 sends; no gatekeeper/minter clause in holder transitions |
 | Block redemptions | Peg-out path (§4.3) has no gatekeeper step; operators serve holders |
 | Forge supply without real vault backing | Mint clauses (e)/(f)/(h): LCP `MoveToBacked` confirmation + N-of-N + recursive `operator_set_root` equality + depth ≥ `D_mint`, one-shot `Pk_mint` uniqueness, `amount == vault-output amount`; in gatekeeper mode, private-fork mint further blocked by gatekeeper withholding `Pk_mint` until **canonical** confirmation (R-04) — **provided the gatekeeper performs R-04/R-08 honestly**; a compromised gatekeeper that skips them can enable Attack A/B (§6.3). |
 | Redirect a mint to a different recipient | Clause (g) recipient binding from deposit taproot commitment |
@@ -162,7 +162,7 @@ Operators are **open-registered** per deposit epoch (§4.1.1); the diagram is un
 |-------|----------------------------|------------------------------|
 | Peg-in deposit lands | — | Deposit taproot (refund leaf) → co-signed `MoveToBacked` (extinguishes refund) → **backing-only** vault output (no depositor/cooperative refund; pre-signed reimbursement graph only); denomination check |
 | Mint settles | Clauses (a)–(h); `(Pk_mint, R)`; LCP proves `MoveToBacked` confirmed at depth ≥ `D_mint` + N-of-N + recursive `operator_set_root` | Observes mint; backing-only vault UTXO is the settled backing (proven in-circuit; no host-side freshness re-check) |
-| Holder transfer | Ordinary §2 | None |
+| Holder transfer | Ordinary parent specification.md §2 | None |
 | Redeem settles | `redeem_commitment` (incl. `max_fee`); `(Pkᵢ, Rᵢ)` | Accepts opening; fronts payout; claim/challenge with claim-marker `(Pkᵢ, Rᵢ, payout_txid, payout_vout)` (logical first-marker — NH-02) |
 | Audit | Upper-bound circulating ≤ vault UTXOs **conditional on** the reserve-safety assumptions of §5 (1-of-N + R-04 + R-08/genesis + ≥1 honest challenger); a successful **Attack A**, **Attack B**, **or** unchallenged fraudulent/duplicate reimbursement breaks it; exact needs published aggregate attestation | Public vault UTXO set + optional balance/aggregate attestations |
 
@@ -626,7 +626,7 @@ The holder reveals the opening `(redeem_amount, btc_recipient, max_fee, redeem_b
 
 The holder supplies a payout template using `SIGHASH_SINGLE | ANYONECANPAY`:
 
-- Output 0 (or the signed output index): P2TR to `btc_recipient`, amount **≥ `redeem_amount − max_fee`** where `max_fee < redeem_amount` and the subtraction is an exact non-negative wide-integer (NH-03; §2.6 gadgets); the operator's actual fee is market-set at fronting time subject to that ceiling — §4.4.
+- Output 0 (or the signed output index): P2TR to `btc_recipient`, amount **≥ `redeem_amount − max_fee`** where `max_fee < redeem_amount` and the subtraction is an exact non-negative wide-integer (NH-03; parent §2.6 gadgets); the operator's actual fee is market-set at fronting time subject to that ceiling — §4.4.
 - Any operator **MAY** fund the input side from **its own funds**.
 
 The bridge fraud statement binds this template's paid output to the opening of `redeem_commitment`. An operator that pays a different address, or pays strictly less than `redeem_amount − max_fee`, **MUST** fail the reimbursement claim under an honest challenge path.
@@ -1112,7 +1112,7 @@ Restatement of §4.0 as a checklist (three gates — all **MUST** clear):
 |---------|----------------|-----|----------------|----------------------|
 | **Reserve safety** | 1-of-N setup honesty (key deletion / correct presign); **permissionless challenge (BitVM2)** **plus ≥1 honest live challenger/watchtower actually acting within every relevant challenge window** (§5 residual 3; availability ≠ guaranteed action — §4.1 role-note (a)); per-operator sequencing connectors; ≥ floor independent watchtowers; sound BitVM2 crypto; `operator_set_root` **policy** honesty basis | Operators / watchtowers / setup | False claim reimburses thief; or vault frozen | **No** (if gates A hold) |
 | **Mint integrity / canonicity** | TS3 clauses (a)–(h); LCP proves `MoveToBacked` at depth ≥ `D_mint` + N-of-N; recursive `operator_set_root` equality; **and** (gatekeeper mode) gatekeeper withholds `Pk_mint` until `MoveToBacked` **and** `reg_root_E` are confirmed on its **own canonical Bitcoin view** and the deposit is not refunded there (**R-04** / Attack A) **and** until the backing epoch's operator set has **at least one independent honest signer (1-of-N-honest basis)** (**R-08** / Attack B) | Minter + **gatekeeper as canonical-chain anchor** (`MoveToBacked` + `reg_root_E`) **and diversity vouch** when designated; depositor co-sign on `MoveToBacked` always (INV-01) | Unbacked mint; private-fork amortization mint (Attack A); self-controlled Sybil-epoch vault drain (Attack B); or (no-gk) non-canonical mint if operators reimburse it | **Yes for trust-minimized pooled canonicity + diversity** when designated (structurally load-bearing — R-04 **and** R-08; under open registration gatekeeper **integrity** is also a backing-safety dependency via R-08 — §6.3); structural legitimacy always via asset-bound `operator_set_root` (foreign-root only). **Corner C (no-gk + open-reg + pooled): UNSOUND** — see residual 9 / trilemma §3.2.1.2 |
-| **Transfer** | Ordinary §2 soundness + nullifier first-occurrence | Protocol | Double-spend / invalid transfer rejected | **No** |
+| **Transfer** | Ordinary parent specification.md §2 soundness + nullifier first-occurrence | Protocol | Double-spend / invalid transfer rejected | **No** |
 | **Redeem liveness** | ≥ 1 live liquid **registered** operator (open set §4.1.1); bonds / fees economic under `max_fee` | Operators | Exit stalls (ransom / freeze risk) | **No** |
 | **Redeem safety** | Full §4.3.2 fraud statement; claim-marker uniqueness (logical first-marker); value preservation; permissionless BitVM2 challenge paths **plus ≥1 honest live challenger actually acting in-window** (if ≥1 challenger acts — §4.3.1; §5 residual 3) | Operators / challengers | Unbacked vault drain | **No** (if gates A hold) |
 | **Entry quality** | Gatekeeper SoF + vault legitimacy vouch (when present); else structural only | Gatekeeper / none | Tainted mint waved through; or refusal / delay with refund leaf | **Yes** when designated (by design) |
@@ -1158,8 +1158,8 @@ The gatekeeper gates **ENTRY (new mints) only**. Mechanism for each non-power:
 
 | Claimed abuse | Why it fails |
 |---------------|--------------|
-| Freeze circulating coins | No gatekeeper role in §2 holder transitions |
-| Claw back settled mints or transfers | No protocol clawback; coins are ordinary §2 state |
+| Freeze circulating coins | No gatekeeper role in parent specification.md §2 holder transitions |
+| Claw back settled mints or transfers | No protocol clawback; coins are ordinary parent specification.md §2 state |
 | Block transfers | Same as freeze — no gatekeeper clause |
 | Block redemptions | No gatekeeper role in §4.3 peg-out; REQ-4 |
 | Mint unbacked supply | Deposit-backing clauses (e)/(f)/(h); LCP + amount discipline; gated mode also withholds `Pk_mint` until **canonical** `MoveToBacked` **and** `reg_root_E` (R-04 / Attack A) **and** until operator-set diversity holds (R-08 / Attack B) — **provided the gatekeeper performs R-04/R-08 honestly**; a compromised gatekeeper that skips them can enable Attack A/B (§6.3) |
@@ -1213,7 +1213,7 @@ Restatement of §2.5: because `gatekeeper` and `operator_set_root` (and `H(vault
 | Vault legitimacy | Gatekeeper vouch (gated) + in-circuit `operator_set_root` | §3.2 / §3.3(e) |
 | Operator-set diversity at mint | Gatekeeper R-08 1-of-N-honest / party-diversity vouch (gated; withholds `Pk_mint` if Sybil epoch; integrity = backing-safety dependency under open reg — §6.3) | §3.1.2 / §3.2.1.1 / R-08 |
 | Canonical `MoveToBacked` + `reg_root_E` at mint | Gatekeeper's own canonical Bitcoin view (gated; withholds `Pk_mint` until both anchors confirmed) | §3.2.1.1 / §4.1.2 / R-04 |
-| Internal transfers | No | Shielded §2 |
+| Internal transfers | No | Shielded parent specification.md §2 |
 | Redeem request | No (unless gatekeeper is also chosen operator) | Off-chain to operators |
 | Payout UTXO | Yes (public Bitcoin) | L1 |
 
@@ -1253,7 +1253,7 @@ State these so product and legal review do not invent protocol powers that do no
 - **Mint without a fresh real `MoveToBacked` backing-only vault output** of matching amount under N-of-N and in-set `agg_key` — clauses (e), (f), (h).
 - **Redirect a mint** — clause (g).
 - **Mint twice per vault outpoint** — clause (f) + first-occurrence on `Pk_mint`.
-- **Block transfers** — no gatekeeper/minter role in §2 holder transitions.
+- **Block transfers** — no gatekeeper/minter role in parent specification.md §2 holder transitions.
 - **Block / censor redemptions** — no gatekeeper role in §4.3.
 - **Inflate supply beyond the vault UTXO ceiling** — §3.6 conditional upper-bound auditability (**conditional on the reserve-safety assumptions of §5**: 1-of-N setup honesty + R-04 + R-08/genesis + ≥1 honest challenger; a successful **Attack A**, **Attack B**, **or** unchallenged fraudulent/duplicate reimbursement breaks it).
 - **Seize the vault unilaterally** — no unilateral vault path; spends only along presigned graphs.
@@ -1384,15 +1384,19 @@ Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-sat
   `https://github.com/zk-coins/docs/blob/develop/docs/specification.md`  
   (URL also in `bitvm-bridge-research.md`)
 - lightning-bridge.md — operator-service pattern (in `zk-coins/docs`)
+  `https://github.com/zk-coins/docs/blob/develop/docs/lightning-bridge.md`
 - risks.md — bridge out of core scope; D-13 / D-16 / D-17 class boundaries (in `zk-coins/docs`)
+  `https://github.com/zk-coins/docs/blob/develop/docs/risks.md`
 - bitvm-bridge-research.md — June-2026 Glock decision (**historical**; superseded by works-today BitVM2 decision §4.0); **explicitly cited source** for the 430–550× figure, single 64-byte Schnorr fraud-proof form, Argo ePrint 2026/049, dispute-cost table (~35k–100k sats projected), Eagen/Linus author-cluster note, and the specification.md GitHub URL above  
   (this repo: `research/bitvm-bridge-research.md`)
 - BITVM_BRIDGE.md — May strategy draft (partially superseded)  
   (this repo: `research/zkcoins-design/BITVM_BRIDGE.md`)
 - BRIDGE_MVP.md — May engineering draft; §4 ProofTypes / SMTs superseded  
   (this repo: `research/zkcoins-design/BRIDGE_MVP.md`)
-- ARKADE_INTEGRATION.md, LIGHTNING_ATOMIC_SWAP.md — complementary liquidity rails  
-  (this repo: `research/zkcoins-design/`)
+- ARKADE_INTEGRATION.md — complementary liquidity rails  
+  (in `zk-coins/research`: https://github.com/zk-coins/research/blob/develop/zkcoins-design/ARKADE_INTEGRATION.md)
+- LIGHTNING_ATOMIC_SWAP.md — complementary liquidity rails  
+  (in `zk-coins/research`: https://github.com/zk-coins/research/blob/develop/zkcoins-design/LIGHTNING_ATOMIC_SWAP.md)
 
 ### 12.2 BitVM2 / BitVM3 / Glock / Argo / Mosaic (primary + efficiency)
 
@@ -1405,7 +1409,7 @@ Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-sat
 - Argo paper — `https://eprint.iacr.org/2026/049` (§10.1)
 - GOAT Network bitvm2-node (open registration) — `https://github.com/GOATNetwork/bitvm2-node`
 - Fiamma operators docs (open co-signer subsets) — `https://docs.fiammalabs.io/` (operators)
-- Bitlayer BitVM bridge mainnet note — blockworks BitVM implementation-stage coverage
+- Bitlayer BitVM bridge mainnet note — blockworks BitVM implementation-stage coverage — `https://blockworks.com/news/bitvm-implementation-stage`
 - Alpen Glock blog — `https://www.alpenlabs.io/blog/glock-verification-on-bitcoin`
 - Alpen Mosaic blog — `https://www.alpenlabs.io/blog/introducing-mosaic-glocks-final-piece`
 - Alpen Strata bridge (historical) — `https://www.alpenlabs.io/blog/introducing-the-strata-bridge`
@@ -1443,7 +1447,7 @@ Covenant soft forks (OP_CTV / CSFS / OP_CAT class) would allow an anyone-can-sat
 - Covenant landscape commentary — `https://www.galaxy.com/insights/research/bitcoins-next-major-upgrade-op-cat-and-op-ctv`
 - OP_CAT topic — `https://bitcoinops.org/en/topics/op_cat/`
 - BIP-119 CTV — `https://github.com/bitcoin/bips/blob/master/bip-0119.mediawiki`
-- PIPEs v2 (research-only) — eprint 2026/186
+- PIPEs v2 (research-only) — eprint 2026/186 — `https://eprint.iacr.org/2026/186`
 
 ---
 
