@@ -28,7 +28,9 @@ research/
 ├── spikes/                        # Throwaway research crates
 │   └── plonky3-recursion-spike/   # Plonky3 recursion feasibility spike (from node staging, PRs #212/#214)
 ├── community-content/             # Community/research pages archived from zk-coins/docs
-└── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
+├── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
+└── audit/                         # Dated internal cryptographic reviews
+    └── 2026-06-06.03.md           # Pass-3 v1 spec review (snapshot; do not rewrite)
 ```
 
 ## Imported Working Content (2026-06-07)
