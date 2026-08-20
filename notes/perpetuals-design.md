@@ -220,7 +220,7 @@ The operator sees everything in real time. This is the irreducible trust point �
 
 **Sequencer rotation across multiple operators**: harder than it sounds — see §10 for why this re-introduces cross-SSS fork problems unless carefully designed. Probably defer to v2.
 
-For v1, operator front-running is mitigated by **reputation + bond**: a documented case of operator front-running is a slashing condition (specifically defined in the bond contract). This is enforced by a cryptographically authenticated operator order-log snapshot that the operator cannot alter post-hoc.
+For v1, operator front-running is mitigated by **reputation + bond**: a documented case of operator front-running is a slashing condition (specifically defined in the bond contract). Evidence is a cryptographically authenticated operator order-log snapshot that the operator cannot alter post-hoc; slashing still needs a separate verification path.
 
 ---
 
