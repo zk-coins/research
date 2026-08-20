@@ -4,9 +4,9 @@ Last updated: 2026-06-06
 
 ## Decision
 
-> **Superseded.** The normative zkBTC specification is [`zk-coins/zkbtc`](https://github.com/zk-coins/zkbtc) (`spec/ZKBTC_TOKEN.md`). Works-today verifier is **BitVM2**; operator set is **cumulative and growth-only (R-09)**; zkBTC is **effectively trustless** (you are an operator). Glock is retained only as a future efficiency option. This file is a June-2026 historical note. Do not cite it as current.
+> **Superseded.** The normative zkBTC specification is [`zk-coins/zkbtc`](https://github.com/zk-coins/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1. Works-today verifier is **BitVM2**; the holder registers as an operator **before the first mint** into a cumulative growth-only set (R-09). Glock is retained only as a future efficiency option. This file is a June-2026 historical note. Do not cite it as current.
 
-**The zkBTC bridge will be built on Glock — no BitVM2 intermediate, no federation V0.** (User decision, 2026-06-06. **Historical — superseded by zk-coins/zkbtc, 2026-08.**)
+**The zkBTC bridge will be built on Glock — no BitVM2 intermediate, no federation V0.** (User decision, 2026-06-06.)
 
 Rationale:
 - Glock's fraud-proof reduces to **one 64-byte Schnorr signature** vs BitVM2's multi-MB dispute chunks — structurally a match for the Variant-2 constant-per-batch `BatchInscription` model that just landed in [zk-coins/docs#40](https://github.com/zk-coins/docs/pull/40).
