@@ -11,7 +11,7 @@ research/
 ├── argo-mac-paper.pdf             # Argo MAC: Garbling with Elliptic Curve MACs (ePrint 2026/049, Jan 2026)
 ├── bitvm-paper.pdf                # BitVM: Quasi-Turing Complete Computation (ePrint 2024/1995)
 ├── bitvm2-bridge-paper.pdf        # BitVM2: Bridging Bitcoin to Second Layers
-├── bitvm-bridge-research.md       # zkBTC bridge analysis: Glock is the chosen path
+├── bitvm-bridge-research.md       # Historical Glock-path note (superseded: zk-coins/zkbtc, BitVM2 + R-09)
 ├── primary-sources/               # Archived full-text articles
 │   ├── blockstream-blog.md        # "Bitcoin's Shielded CSV Protocol Explained" (Dec 2024)
 │   ├── mailing-list.md            # Bitcoin-Dev thread: Nick, Riard, Chen (Sep 2024)
@@ -58,7 +58,7 @@ See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of th
 
 ## Bridge Construction (zkBTC path)
 
-For a trustless BTC↔zkCoins bridge, we have committed to **Glock** (Alpen Labs / Liam Eagen) — no BitVM2 intermediate, no federation-V0. See [bitvm-bridge-research.md](bitvm-bridge-research.md) for the analysis and the trade-offs.
+**Normative zkBTC is [`zk-coins/zkbtc`](https://github.com/zk-coins/zkbtc), not this archive.** zkBTC is token standard 3 on BitVM2 with a cumulative, growth-only operator set (R-09). It is **effectively trustless**: the holder is an operator; nobody else is trusted with their bitcoin; a gatekeeper is optional and only gates new mints. The June-2026 Glock-only / "no BitVM2 intermediate" note in [bitvm-bridge-research.md](bitvm-bridge-research.md) is **historical** and superseded. Glock / BitVM3 remain possible future efficiency upgrades in that specification, not the launch path. There is no federation V0.
 
 | Paper | Authors | Date | Local copy |
 |---|---|---|---|
