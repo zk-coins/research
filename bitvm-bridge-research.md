@@ -4,7 +4,7 @@ Last updated: 2026-06-06
 
 ## Decision
 
-> **Superseded.** The normative zkBTC specification is [`zk-coins/zkbtc`](https://github.com/zk-coins/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1. Works-today verifier is **BitVM2**; the holder registers as an operator **before the first mint** into a cumulative growth-only set (R-09). Glock is retained only as a future efficiency option. This file is a June-2026 historical note. Do not cite it as current.
+> **Superseded.** The normative zkBTC specification is [`zk-BTC/zkbtc`](https://github.com/zk-BTC/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1. Works-today verifier is **BitVM2**; the holder registers as an operator **before the first mint** into a cumulative growth-only set (R-09). Glock is retained only as a future efficiency option. This file is a June-2026 historical note. Do not cite it as current.
 
 **The zkBTC bridge will be built on Glock — no BitVM2 intermediate, no federation V0.** (User decision, 2026-06-06.)
 

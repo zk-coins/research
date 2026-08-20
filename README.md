@@ -11,7 +11,7 @@ research/
 ├── argo-mac-paper.pdf             # Argo MAC: Garbling with Elliptic Curve MACs (ePrint 2026/049, Jan 2026)
 ├── bitvm-paper.pdf                # BitVM: Quasi-Turing Complete Computation (ePrint 2024/1995)
 ├── bitvm2-bridge-paper.pdf        # BitVM2: Bridging Bitcoin to Second Layers
-├── bitvm-bridge-research.md       # Historical Glock-path note (superseded: zk-coins/zkbtc, BitVM2 + R-09)
+├── bitvm-bridge-research.md       # Historical Glock-path note (superseded: zk-BTC/zkbtc, BitVM2 + R-09)
 ├── primary-sources/               # Archived full-text articles
 │   ├── blockstream-blog.md        # "Bitcoin's Shielded CSV Protocol Explained" (Dec 2024)
 │   ├── mailing-list.md            # Bitcoin-Dev thread: Nick, Riard, Chen (Sep 2024)
@@ -58,7 +58,7 @@ See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of th
 
 ## Bridge Construction (zkBTC path)
 
-**Normative zkBTC is [`zk-coins/zkbtc`](https://github.com/zk-coins/zkbtc) ([spec](https://github.com/zk-coins/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1), not this archive.** The works-today verifier is BitVM2; the token standard lives in that repo. The operator set is cumulative and growth-only (R-09). zkBTC is **effectively trustless** there: the holder registers as an operator **before the first mint**; nobody else is trusted with their bitcoin; a gatekeeper is optional and only gates new mints. The June-2026 Glock-only / "no BitVM2 intermediate" note in [bitvm-bridge-research.md](bitvm-bridge-research.md) is **historical** and superseded. Glock / BitVM3 remain possible future efficiency upgrades in that specification, not the launch path. There is no federation V0.
+**Normative zkBTC is [`zk-BTC/zkbtc`](https://github.com/zk-BTC/zkbtc) ([spec](https://github.com/zk-BTC/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1), not this archive.** The works-today verifier is BitVM2; the token standard lives in that repo. The operator set is cumulative and growth-only (R-09). zkBTC is **effectively trustless** there: the holder registers as an operator **before the first mint**; nobody else is trusted with their bitcoin; a gatekeeper is optional and only gates new mints. The June-2026 Glock-only / "no BitVM2 intermediate" note in [bitvm-bridge-research.md](bitvm-bridge-research.md) is **historical** and superseded. Glock / BitVM3 remain possible future efficiency upgrades in that specification, not the launch path. There is no federation V0.
 
 | Paper | Authors | Date | Local copy |
 |---|---|---|---|
@@ -67,7 +67,7 @@ See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of th
 | **BitVM2: Bridging Bitcoin to Second Layers** | BitVM team | 2024 | [bitvm2-bridge-paper.pdf](bitvm2-bridge-paper.pdf) · [bitvm.org/bitvm_bridge.pdf](https://bitvm.org/bitvm_bridge.pdf) |
 | **BitVM: Quasi-Turing Complete Computation** | Lukas Aumayr et al. | 2024 | [bitvm-paper.pdf](bitvm-paper.pdf) · [ePrint 2024/1995](https://eprint.iacr.org/2024/1995) |
 
-Glock and Argo are kept side by side because Robin Linus co-authored Argo and the two constructions are sister directions in the same research line. They remain a research / efficiency track. BitVM2 is the launch verifier in [`zk-coins/zkbtc`](https://github.com/zk-coins/zkbtc); BitVM papers stay as the comparison baseline.
+Glock and Argo are kept side by side because Robin Linus co-authored Argo and the two constructions are sister directions in the same research line. They remain a research / efficiency track. BitVM2 is the launch verifier in [`zk-BTC/zkbtc`](https://github.com/zk-BTC/zkbtc); BitVM papers stay as the comparison baseline.
 
 ## Upstream Repositories
 
