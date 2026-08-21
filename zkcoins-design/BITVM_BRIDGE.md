@@ -1,5 +1,7 @@
 # BitVM Bridge — Trustless Mint/Burn for zkCoins
 
+> **Superseded.** The normative zkBTC token standard and bridge profile is [`zk-BTC/zkbtc`](https://github.com/zk-BTC/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1. The holder registers into a cumulative, growth-only operator set **before the first mint**. This May draft is archived. Do not implement from it.
+
 **Status:** Design draft. No code yet. Companion to `SPEC.md`
 (specifically D11), `MIGRATION_RESEARCH.md`, `ROADMAP.md`, and
 [`LIGHTNING_ATOMIC_SWAP.md`](./LIGHTNING_ATOMIC_SWAP.md).

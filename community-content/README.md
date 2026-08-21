@@ -3,7 +3,7 @@
 These pages previously lived under `docs/research/` in
 [`zk-coins/docs`](https://github.com/zk-coins/docs) and rendered on the public docs site.
 They are community-, sources-, and analysis-flavoured material rather than the target-design
-specification, so they were moved here on **2026-06-07** to keep `docs.zkcoins.app` focused
+specification, so they were moved here on **2026-06-07** to keep `docs.zkcoins.com` focused
 strictly on the protocol's target implementation. Archived **verbatim** (Docusaurus
 front-matter preserved).
 

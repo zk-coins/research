@@ -11,7 +11,7 @@ research/
 ├── argo-mac-paper.pdf             # Argo MAC: Garbling with Elliptic Curve MACs (ePrint 2026/049, Jan 2026)
 ├── bitvm-paper.pdf                # BitVM: Quasi-Turing Complete Computation (ePrint 2024/1995)
 ├── bitvm2-bridge-paper.pdf        # BitVM2: Bridging Bitcoin to Second Layers
-├── bitvm-bridge-research.md       # zkBTC bridge analysis: Glock is the chosen path
+├── bitvm-bridge-research.md       # Historical Glock-path note (superseded: zk-BTC/zkbtc, BitVM2 + R-09)
 ├── primary-sources/               # Archived full-text articles
 │   ├── blockstream-blog.md        # "Bitcoin's Shielded CSV Protocol Explained" (Dec 2024)
 │   ├── mailing-list.md            # Bitcoin-Dev thread: Nick, Riard, Chen (Sep 2024)
@@ -28,7 +28,9 @@ research/
 ├── spikes/                        # Throwaway research crates
 │   └── plonky3-recursion-spike/   # Plonky3 recursion feasibility spike (from node staging, PRs #212/#214)
 ├── community-content/             # Community/research pages archived from zk-coins/docs
-└── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
+├── operations/                    # Backend/deployment ops notes archived from zk-coins/docs
+└── audit/                         # Dated internal cryptographic reviews
+    └── 2026-06-06.03.md           # Pass-3 v1 spec review (snapshot; do not rewrite)
 ```
 
 ## Imported Working Content (2026-06-07)
@@ -56,7 +58,7 @@ See **[PROTOCOL_STATUS.md](PROTOCOL_STATUS.md)** for a detailed comparison of th
 
 ## Bridge Construction (zkBTC path)
 
-For a trustless BTC↔zkCoins bridge, we have committed to **Glock** (Alpen Labs / Liam Eagen) — no BitVM2 intermediate, no federation-V0. See [bitvm-bridge-research.md](bitvm-bridge-research.md) for the analysis and the trade-offs.
+**Normative zkBTC is [`zk-BTC/zkbtc`](https://github.com/zk-BTC/zkbtc) ([spec](https://github.com/zk-BTC/zkbtc/blob/main/spec/ZKBTC_TOKEN.md) §1.1.1), not this archive.** The works-today verifier is BitVM2; the token standard lives in that repo. The operator set is cumulative and growth-only (R-09). zkBTC is **effectively trustless** there: the holder registers as an operator **before the first mint**; nobody else is trusted with their bitcoin; a gatekeeper is optional and only gates new mints. The June-2026 Glock-only / "no BitVM2 intermediate" note in [bitvm-bridge-research.md](bitvm-bridge-research.md) is **historical** and superseded. Glock / BitVM3 remain possible future efficiency upgrades in that specification, not the launch path. There is no federation V0.
 
 | Paper | Authors | Date | Local copy |
 |---|---|---|---|
@@ -65,7 +67,7 @@ For a trustless BTC↔zkCoins bridge, we have committed to **Glock** (Alpen Labs
 | **BitVM2: Bridging Bitcoin to Second Layers** | BitVM team | 2024 | [bitvm2-bridge-paper.pdf](bitvm2-bridge-paper.pdf) · [bitvm.org/bitvm_bridge.pdf](https://bitvm.org/bitvm_bridge.pdf) |
 | **BitVM: Quasi-Turing Complete Computation** | Lukas Aumayr et al. | 2024 | [bitvm-paper.pdf](bitvm-paper.pdf) · [ePrint 2024/1995](https://eprint.iacr.org/2024/1995) |
 
-Glock and Argo are kept side by side because Robin Linus co-authored Argo and the two constructions are sister directions in the same research line; Glock is the closer-to-mainnet path. BitVM and BitVM2 are kept as the comparison baseline even though we are not building on them.
+Glock and Argo are kept side by side because Robin Linus co-authored Argo and the two constructions are sister directions in the same research line. They remain a research / efficiency track. BitVM2 is the launch verifier in [`zk-BTC/zkbtc`](https://github.com/zk-BTC/zkbtc); BitVM papers stay as the comparison baseline.
 
 ## Upstream Repositories
 
@@ -118,7 +120,7 @@ git submodule update --init --recursive
 |---|---|
 | [zk-coins/app](https://github.com/zk-coins/app) | Web application (zkcoins.app) |
 | [zk-coins/node](https://github.com/zk-coins/node) | Rust backend / node (api.zkcoins.app) |
-| [zk-coins/docs](https://github.com/zk-coins/docs) | Documentation (docs.zkcoins.app) |
+| [zk-coins/docs](https://github.com/zk-coins/docs) | Documentation (docs.zkcoins.com) |
 
 ## License
 
